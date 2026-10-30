@@ -1,0 +1,14 @@
+Notes:
+"When exporting your connection data, you may notice that some of the email addresses are missing. You will only see email addresses for connections who have allowed their connections to see or download their email address using this setting https://www.linkedin.com/psettings/privacy/email. You can learn more here https://www.linkedin.com/help/linkedin/answer/261"
+
+First Name,Last Name,URL,Email Address,Company,Position,Connected On
+Priya,Sharma,https://www.linkedin.com/in/priyasharma,,Razorpay Software Pvt. Ltd.,Senior Product Designer,15 Mar 2023
+Rahul,Verma,https://www.linkedin.com/in/rahulverma,rahul@example.com,"Flipkart Internet Private Limited","Design Manager, Checkout",02 Jan 2021
+Ana,Gómez,https://www.linkedin.com/in/anagomez/,,Meta,Product Manager,9 Nov 2019
+Sam,Lee,https://www.linkedin.com/in/samlee,,Metabase,Engineer,20 Feb 2024
+Kiran,Rao,https://www.linkedin.com/in/kiranrao,,Self-employed,Consultant,01 Jun 2022
+Neha,Iyer,https://www.linkedin.com/in/nehaiyer,,,"Product Lead
+(ex-Swiggy)",11 Aug 2020
+,,https://www.linkedin.com/in/ghost,,Nowhere Inc,,01 Jan 2020
+Priya,Sharma,https://www.linkedin.com/in/priyasharma,,Razorpay Software Pvt. Ltd.,Staff Product Designer,15 Mar 2023
+Tom,O'Brien,https://www.linkedin.com/in/tobrien,,"Bain & Company",Consultant,05 May 2018

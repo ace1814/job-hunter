@@ -1,0 +1,111 @@
+{
+ "jobs": [
+  {
+   "absolute_url": "https://boards.greenhouse.io/figma/jobs/6216211004?gh_jid=6216211004",
+   "data_compliance": [
+    {
+     "type": "gdpr",
+     "requires_consent": false,
+     "requires_processing_consent": false,
+     "requires_retention_consent": false,
+     "retention_period": null,
+     "demographic_data_consent_applies": false
+    }
+   ],
+   "internal_job_id": 5225363004,
+   "location": {
+    "name": "San Francisco, CA • New York, NY • United States"
+   },
+   "metadata": null,
+   "id": 6216211004,
+   "updated_at": "2026-10-27T13:40:12-04:00",
+   "requisition_id": "2638",
+   "title": "Brand Designer, Web",
+   "company_name": "Figma",
+   "first_published": "2026-10-08T18:24:57-04:00",
+   "language": "en",
+   "application_deadline": null,
+   "content": "&lt;div class=&quot;content-intro&quot;&gt;&lt;p&gt;Figma is growing our team of passionate creatives and builders on a mission to make design accessible to all. Figma’s platform helps teams bring ideas to life—whether you&#39;re brainstorming, creating a prototype, translating designs into code, or iterating with AI. From idea to product, Figma empowers teams to streamline workflows, move faster, and work together in real time from anywhere in the world. If you&#39;re excited to shape the future of design and collaboration, join us!&lt;/p&gt;&lt;/div&gt;&lt;p&gt;We’re looking for a Brand Designer to join the Figma Brand Studio and focus on designing for the web. This role will help up-level some of our most important surfaces—our marketing websites—in brand-forward, novel, and unexpected ways.&lt;/p&gt;\n&lt;p&gt;This role sits at the intersection of web design, software storytelling, and brand. You’ll need expert visual and UX instincts, a deep curiosity about our products, and a point of view on how to make product stories land on the web—showing what Figma can do, not just telling. You’re someone who loves to tinker and experiment. You have a deep understanding of accessibility, and you’re comfortable taking ideas from early sketch to working prototype, partnering with web engineers to bring new patterns and interactions to life. Working closely across Brand and Marketing, you’ll shape everything from site structure and navigation to launch, campaign, and event experiences",
+   "departments": [
+    {
+     "id": 4016251004,
+     "name": "Marketing",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "offices": [
+    {
+     "id": 4031430004,
+     "name": "Canada",
+     "location": null,
+     "child_ids": [
+      4031432004,
+      4031431004
+     ],
+     "parent_id": 4033142004
+    },
+    {
+     "id": 4024285004,
+     "name": "US",
+     "location": null,
+     "child_ids": [],
+     "parent_id": 4033142004
+    }
+   ],
+   "ai_disclaimer": null,
+   "include_ai_disclaimer": null,
+   "ai_opt_out_request_url": "http://app4.greenhouse.io/ai_opt_out_request/job_post/6216211004/ai_opt_out"
+  },
+  {
+   "absolute_url": "https://boards.greenhouse.io/figma/jobs/5426468004?gh_jid=5426468004",
+   "data_compliance": [
+    {
+     "type": "gdpr",
+     "requires_consent": false,
+     "requires_processing_consent": false,
+     "requires_retention_consent": false,
+     "retention_period": null,
+     "demographic_data_consent_applies": false
+    }
+   ],
+   "internal_job_id": 4868517004,
+   "location": {
+    "name": "San Francisco, CA • New York, NY • United States"
+   },
+   "metadata": null,
+   "id": 5426468004,
+   "updated_at": "2026-10-27T13:40:12-04:00",
+   "requisition_id": "1451",
+   "title": "Account Executive, Enterprise",
+   "company_name": "Figma",
+   "first_published": "2025-01-28T18:57:29-05:00",
+   "language": "en",
+   "application_deadline": null,
+   "content": "&lt;div class=&quot;content-intro&quot;&gt;&lt;p&gt;Figma is growing our team of passionate creatives and builders on a mission to make design accessible to all. Figma’s platform helps teams bring ideas to life—whether you&#39;re brainstorming, creating a prototype, translating designs into code, or iterating with AI. From idea to product, Figma empowers teams to streamline workflows, move faster, and work together in real time from anywhere in the world. If you&#39;re excited to shape the future of design and collaboration, join us!&lt;/p&gt;&lt;/div&gt;&lt;p&gt;We are looking for an Enterprise Account Executive who will play a critical role driving sales and maximizing revenue with our Enterprise customers. You will be responsible for targeting, building and nurturing positive relationships with key executive level decision-makers, understanding complex business needs, and delivering innovative solutions across our product suite. This is an opportunity to accelerate your career, learn from leading sellers in the industry and build an incredible network of cross functional partners at Figma.&lt;/p&gt;\n&lt;p&gt;This is a full time role that can be held from one of our US hubs or remotely in the United States.&lt;/p&gt;\n&lt;h4&gt;&lt;strong&gt;What you&#39;ll do at Figma:&lt;/strong&gt;&lt;/h4&gt;\n&lt;ul&gt;\n&lt;li&gt;Create and manage a pipeline of Enterprise accounts to consistently meet or exceed quarterly and annual sales targets&lt;/li&gt;\n&lt;li&gt;Apply effective discov",
+   "departments": [
+    {
+     "id": 4016255004,
+     "name": "Sales",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "offices": [
+    {
+     "id": 4024285004,
+     "name": "US",
+     "location": null,
+     "child_ids": [],
+     "parent_id": 4033142004
+    }
+   ],
+   "ai_disclaimer": null,
+   "include_ai_disclaimer": null,
+   "ai_opt_out_request_url": "http://app4.greenhouse.io/ai_opt_out_request/job_post/5426468004/ai_opt_out"
+  }
+ ],
+ "meta": {
+  "total": 2
+ }
+}

@@ -7,7 +7,7 @@ final class DatabaseTests: XCTestCase {
         let database = try AppDatabase.inMemory()
         try database.reader.read { db in
             for table in ["profile", "company", "companyAlias", "source", "job", "jobFTS", "jobScore",
-                          "connection", "jobReferral", "dailyQueue", "application", "dailyLog"] {
+                          "connection", "jobReferral", "dailyQueue", "application", "dailyLog", "setting"] {
                 XCTAssertTrue(try db.tableExists(table), table)
             }
         }

@@ -1,0 +1,61 @@
+{
+ "author": "whoishiring",
+ "children": [
+  {
+   "author": "mwest1066",
+   "children": [],
+   "created_at": "2026-10-01T15:02:37.000Z",
+   "created_at_i": 1790866957,
+   "id": 49922584,
+   "options": [],
+   "parent_id": 49922569,
+   "points": null,
+   "story_id": 49922569,
+   "text": "PrairieLearn (Remote US) — Full-Stack Software Engineer — TypeScript &#x2F; Postgres &#x2F; React &#x2F; AI<p>PrairieLearn (<a href=\"https:&#x2F;&#x2F;www.prairielearn.com\" rel=\"nofollow\">https:&#x2F;&#x2F;www.prairielearn.com</a>) is an open-source assessment platform used by universities across the US (Berkeley, Princeton, Michigan, Illinois, and others). We power mastery-based learning and large-scale exams.<p>We’re a small, profitable, early-stage company (bootstrapped, no VC) that is growing quickly. Our users love us and we have very high retention and rapid spread through word of mouth. As an early-stage hire, you’ll work across the stack and enjoy meaningful ownership from day one.<p",
+   "title": null,
+   "type": "comment",
+   "url": null
+  },
+  {
+   "author": "shepherd-eng",
+   "children": [],
+   "created_at": "2026-10-01T15:02:51.000Z",
+   "created_at_i": 1790866971,
+   "id": 49922593,
+   "options": [],
+   "parent_id": 49922569,
+   "points": null,
+   "story_id": 49922569,
+   "text": "Shepherd (Series B) | ONSITE | San Francisco, CA &amp; New York City, NY<p>At Shepherd, we&#x27;re pursuing the most ambitious technical vision in commercial insurance: fully autonomous underwriting. Shepherd is an AI-native commercial insurance platform transforming how high-hazard industries get covered.<p>The infrastructure behind the AI boom (data centers, semiconductor fabs, renewable energy assets) has to be built and insured, but traditional carriers weren&#x27;t built for this speed. We built Shepherd to solve that.<p>We announced our $42M Series B earlier this year! That brings our total funding to over $60M — led by Intact Private Capital, the investment arm of one of the largest i",
+   "title": null,
+   "type": "comment",
+   "url": null
+  },
+  {
+   "author": "mcintyem",
+   "children": [],
+   "created_at": "2026-10-01T15:03:36.000Z",
+   "created_at_i": 1790867016,
+   "id": 49922609,
+   "options": [],
+   "parent_id": 49922569,
+   "points": null,
+   "story_id": 49922569,
+   "text": "Sidekick Labs | Senior SWE, R&amp;D Engineer, Intelligence Engineer | REMOTE (US Timezones) | Full-time | $170k to $230k Base + Equity + Health<p>Sidekick builds AI security software for enterprises. Our sensors observe AI behavior and use in situ. From those observations, our reasoning pipeline produces an application inventory and a risk picture, allowing us to provide real-time intervention and coaching right when it matters.<p><i>Compensation:</i> base salary scaled to experience, meaningful early-stage equity, and 100% covered health insurance for you and your immediate family<p>We are a highly senior team. Most of us have been founders or on early founding teams, so we operate with hig",
+   "title": null,
+   "type": "comment",
+   "url": null
+  }
+ ],
+ "created_at": "2026-10-01T15:02:07.000Z",
+ "created_at_i": 1790866927,
+ "id": 49922569,
+ "options": [],
+ "parent_id": null,
+ "points": 277,
+ "story_id": 49922569,
+ "text": "Please state the location and include REMOTE for remote work, REMOTE (US)\nor similar if the country is restricted, and ONSITE when remote work is <i>not</i> an option.<p>Please only post if you personally are part of the hiring company—no\nrecruiting firms or job boards. One post per company. If it isn&#x27;t a household name,\nexplain what your company does.<p>Please only post if you are actively filling a position and are committed\nto replying to applicants.<p>Commenters: please don&#x27;t reply to job posts to complain about\nsomething. It&#x27;s off topic here.<p>Readers: please only email if you are personally interested in the job.<p>Searchers: try <a href=\"https:&#x2F;&#x2F;hnwork.app\" rel=\"nofollow\">https:&#x2F;&#x2F;hnwork.app</a>, <a href=\"https:&#x2F;&#x2F;nthesis.ai&#x2F;public&#x2F;hn-who-is-hiring\" rel=\"nofollow\">https:&#x2F;&#x2F;nthesis.ai&#x2F;public&#x2F;hn-who-is-hiring</a>, <a href=\"https:&#x2F;&#x2F;dheerajck.github.io&#x2F;hnwhoishiring&#x2F;\" rel=\"nofollow\">https:&#x2F;&#x2F;dheerajck.github.io&#x2F;hnwhoishiring&#x2F;</a>,\n<a href=\"http:&#x2F;&#x2F;nchelluri.github.io&#x2F;hnjobs&#x2F;\" rel=\"nofollow\">http:&#x2F;&#x2F;nchelluri.github.io&#x2F;hnjobs&#x2F;</a>, <a href=\"https:&#x2F;&#x2F;hnjobs.emilburzo.com\" rel=\"nofollow\">https:&#x2F;&#x2F;hnjobs.emilburzo.com</a>.<p>Don&#x27;t miss this other fine thread: <i>Who wants to be hired?</i> <a href=\"https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=49922568\">https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=49922568</a>",
+ "title": "Ask HN: Who is hiring? (October 2026)",
+ "type": "story",
+ "url": null
+}

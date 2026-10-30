@@ -1,0 +1,127 @@
+{
+ "comments": "Search results come 20 to a page. Pass ?page=2, ?page=3 and so on for more; there is no cursor on search. Cursor pagination (nextCursor) is only on /jobs/api, the browse feed. 13/03/2026: The API has been updated to include the companySlug field in the response.",
+ "updatedAt": 1793322312,
+ "offset": 0,
+ "limit": 20,
+ "totalCount": 1226,
+ "jobs": [
+  {
+   "title": "Senior UI & UX Designer",
+   "excerpt": "helps companies in the US and Europe hire experienced engineers & designers, from funded startups to teams like Klarna, Retool, and Pinterest.",
+   "companyName": "lemon.io",
+   "companySlug": "lemon-io",
+   "companyLogo": "https://cdn-images.himalayas.app/7q73pk07sy2xiwd47drvhwevk93r",
+   "employmentType": "Contractor",
+   "minSalary": null,
+   "maxSalary": null,
+   "salaryPeriod": "annual",
+   "seniority": [
+    "Senior"
+   ],
+   "currency": "USD",
+   "locationRestrictions": [
+    "Albania",
+    "Andorra",
+    "Argentina"
+   ],
+   "timezoneRestrictions": [
+    -11,
+    -10,
+    -9.5,
+    -9,
+    -8,
+    -7,
+    -6,
+    -5,
+    -4,
+    -3.5,
+    -3,
+    -2,
+    -1,
+    0,
+    1,
+    2,
+    3,
+    3.5,
+    4,
+    4.5,
+    5,
+    5.5,
+    5.75,
+    6,
+    6.5,
+    7,
+    8,
+    8.75,
+    9,
+    9.5,
+    10,
+    10.5,
+    11,
+    12,
+    12.75,
+    13,
+    14
+   ],
+   "categories": [
+    "UI-UX-Designer",
+    "Senior-UI-Designer",
+    "Senior-UX-Designer",
+    "Senior-UI-UX-Design",
+    "Product-Designer",
+    "UX-UI-Senior",
+    "Senior-UX-Design",
+    "UX-Designer"
+   ],
+   "parentCategories": [
+    "Design"
+   ],
+   "description": "<p> helps companies in the US and Europe hire experienced engineers &amp; designers, from funded startups to teams like Klarna, Retool, and Pinterest. We’ve been doing this since 2015, and more than 1,500 companies have hired engineers through us.</p><p>New roles for Senior Designers come in all the time, and several are open right now.</p><p><strong>Two ways to work with clients</strong></p><ul class=\"list-disc list-outside leading-3 -mt-2\">\n<li class=\"leading-normal -mb-2\"><p><strong>Contract:</strong> most roles are contract-based. You join the client’s team and work as part of it.</p></li>\n<li class=\"leading-normal -mb-2\"><p><strong>Direct hire:</strong> some clients hire designers full-time, and we support you through the process.</p></li>\n</ul><p>Because companies trust our vetting, ",
+   "pubDate": 1792675549,
+   "expiryDate": 1795259343,
+   "applicationLink": "https://himalayas.app/companies/lemon-io/jobs/senior-ui-ux-designer?utm_source=api",
+   "guid": "https://himalayas.app/companies/lemon-io/jobs/senior-ui-ux-designer"
+  },
+  {
+   "title": "Staff Product Designer",
+   "excerpt": "Job SummaryWe're looking for a Staff Product Designer to take on Koru's most ambiguous, highest-leverage design problems, the ones that span multiple client accounts, cross multiple teams, or don't have a defined brief yet.",
+   "companyName": "Koru UX Design LLP",
+   "companySlug": "koru-ux-design-llp",
+   "companyLogo": "https://cdn-images.himalayas.app/y52n6dv2w07lhsqh5lca5v0i2l5n",
+   "employmentType": "Full Time",
+   "minSalary": null,
+   "maxSalary": null,
+   "salaryPeriod": "annual",
+   "seniority": [
+    "Senior"
+   ],
+   "currency": null,
+   "locationRestrictions": [
+    "India"
+   ],
+   "timezoneRestrictions": [
+    5.5
+   ],
+   "categories": [
+    "Product-Design",
+    "UX-Design",
+    "AI-Product-Design",
+    "Design-Leadership",
+    "UI-UX-Design",
+    "Staff-Product-Designer",
+    "Senior-Staff-Product-Designer",
+    "Staff-Product-Design",
+    "Product-Designer",
+    "Design"
+   ],
+   "parentCategories": [
+    "Design"
+   ],
+   "description": "<h3>Job Summary</h3><p>We're looking for a Staff Product Designer to take on Koru's most ambiguous, highest-leverage design problems, the ones that span multiple client accounts, cross multiple teams, or don't have a defined brief yet. You'll set the standard for design quality and AI-informed practice across the accounts you touch, and operate effectively in ambiguous, fast-moving environments where creating structure is part of the job, not something handed to you.</p><p>We're also looking for genuine fluency with AI in product design and not just familiarity with AI tools, but real judgement about when AI actually helps a user and when it quietly doesn't, backed by a track record of shipping AI-powered features responsibly, and comfort using AI tools as part of your own workflow, not ju",
+   "pubDate": 1790097378,
+   "expiryDate": 1795281375,
+   "applicationLink": "https://himalayas.app/companies/koru-ux-design-llp/jobs/staff-product-designer?utm_source=api",
+   "guid": "https://himalayas.app/companies/koru-ux-design-llp/jobs/staff-product-designer"
+  }
+ ]
+}

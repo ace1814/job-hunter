@@ -194,6 +194,20 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v2") { db in
+            // Small app-wide settings, stored as JSON by key (see `Settings`).
+            try db.create(table: "setting") { t in
+                t.primaryKey("key", .text)
+                t.column("value", .jsonText).notNull()
+            }
+            try db.alter(table: "job") { t in
+                // When the job was last in its feed, and when a full company board stopped
+                // listing it. Closed jobs never reach the daily queue.
+                t.add(column: "lastSeenAt", .datetime)
+                t.add(column: "closedAt", .datetime)
+            }
+        }
+
         return migrator
     }
 }

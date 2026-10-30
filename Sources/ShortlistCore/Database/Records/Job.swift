@@ -51,6 +51,8 @@ public struct Job: Codable, Identifiable, Equatable, Sendable, FetchableRecord, 
     public var firstSeenAt: Date
     public var status: JobStatus
     public var statusChangedAt: Date
+    public var lastSeenAt: Date?
+    public var closedAt: Date?
 
     public init(
         id: Int64? = nil, sourceId: Int64? = nil, externalID: String? = nil, companyId: Int64? = nil,
@@ -75,11 +77,14 @@ public struct Job: Codable, Identifiable, Equatable, Sendable, FetchableRecord, 
         self.firstSeenAt = firstSeenAt
         self.status = status
         self.statusChangedAt = firstSeenAt
+        self.lastSeenAt = firstSeenAt
     }
 
     public mutating func didInsert(_ inserted: InsertionSuccess) {
         id = inserted.rowID
     }
+
+    public var isOpen: Bool { closedAt == nil }
 
     /// The same role at the same company and place is one job, whichever feed it came from.
     public static func dedupeKey(company: String, title: String, location: String) -> String {

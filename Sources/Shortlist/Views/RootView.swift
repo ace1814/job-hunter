@@ -67,11 +67,11 @@ struct RootView: View {
             ComingSoon(item: item, step: "Step 4",
                        blurb: "Your top 15 matches for the day, with the job, the AI's reasoning and who you know there, side by side. Plus your progress toward 10 applications.")
         case .allJobs:
-            ComingSoon(item: item, step: "Step 2", blurb: "Every job pulled from your sources, searchable, with its score and status.")
+            JobsView()
         case .profile:
             ComingSoon(item: item, step: "Step 3", blurb: "Your master profile and resume: what jobs are scored against and what tailoring starts from.")
         case .sources:
-            ComingSoon(item: item, step: "Step 2", blurb: "Company job boards you watch, remote-job APIs and RSS feeds.")
+            SourcesView()
         }
     }
 }

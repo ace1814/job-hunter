@@ -1,12 +1,23 @@
 import Foundation
 import GRDB
 
-/// A job as the job list shows it: the job, where it came from, and how many people you know there.
+/// How the job list is ordered.
+public enum JobOrder: String, CaseIterable, Sendable {
+    case newest
+    case bestMatch
+    /// Only today's frozen top picks, in their order.
+    case today
+}
+
+/// A job as the job list shows it: the job, where it came from, how many people you know there,
+/// its score, and your own label.
 public struct JobListItem: Equatable, Sendable, Identifiable, FetchableRecord {
     public var job: Job
     public var sourceKind: SourceKind?
     public var sourceName: String?
     public var referralCount: Int
+    public var score: JobScore?
+    public var label: JobLabelValue?
 
     public var id: Int64 { job.id ?? 0 }
 
@@ -15,23 +26,42 @@ public struct JobListItem: Equatable, Sendable, Identifiable, FetchableRecord {
         sourceKind = row["sourceKind"]
         sourceName = row["sourceName"]
         referralCount = row["referralCount"]
+        let scoreValue: Int? = row["score"]
+        score = scoreValue == nil ? nil : try JobScore(row: row)
+        label = row["labelValue"]
     }
 
-    /// Open jobs, newest first, optionally narrowed by a keyword search over title, company and text.
-    public static func open(matching search: String = "", limit: Int = 500, _ db: Database) throws -> [JobListItem] {
+    /// Open jobs, optionally narrowed by a keyword search over title, company and text.
+    public static func open(matching search: String = "", order: JobOrder = .newest, day: String = Day.today,
+                            limit: Int = 500, _ db: Database) throws -> [JobListItem] {
         var sql = """
-            SELECT job.*, source.kind AS sourceKind, source.name AS sourceName,
+            SELECT job.*, jobScore.*, source.kind AS sourceKind, source.name AS sourceName,
+                   jobLabel.label AS labelValue,
                    (SELECT COUNT(*) FROM jobReferral WHERE jobReferral.jobId = job.id) AS referralCount
             FROM job
             LEFT JOIN source ON source.id = job.sourceId
-            WHERE job.closedAt IS NULL
+            LEFT JOIN jobScore ON jobScore.jobId = job.id
+            LEFT JOIN jobLabel ON jobLabel.jobId = job.id
             """
         var arguments: StatementArguments = []
+        if order == .today {
+            sql += " JOIN dailyQueue ON dailyQueue.jobId = job.id AND dailyQueue.day = ?"
+            arguments += [day]
+        }
+        sql += " WHERE job.closedAt IS NULL"
         if let pattern = FTS5Pattern(matchingAllPrefixesIn: search) {
             sql += " AND job.id IN (SELECT rowid FROM jobFTS WHERE jobFTS MATCH ?)"
             arguments += [pattern]
         }
-        sql += " ORDER BY COALESCE(job.postedAt, job.firstSeenAt) DESC LIMIT ?"
+        switch order {
+        case .newest:
+            sql += " ORDER BY COALESCE(job.postedAt, job.firstSeenAt) DESC"
+        case .bestMatch:
+            sql += " ORDER BY jobScore.score IS NULL, jobScore.score DESC, COALESCE(job.postedAt, job.firstSeenAt) DESC"
+        case .today:
+            sql += " ORDER BY dailyQueue.rank"
+        }
+        sql += " LIMIT ?"
         arguments += [limit]
         return try JobListItem.fetchAll(db, sql: sql, arguments: arguments)
     }

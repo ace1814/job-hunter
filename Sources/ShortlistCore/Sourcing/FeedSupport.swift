@@ -2,9 +2,10 @@ import Foundation
 
 // MARK: - HTTP
 
-/// The one network call feeds make. A protocol so tests can serve saved responses.
+/// The network calls feeds and model clients make. A protocol so tests can serve saved responses.
 public protocol HTTPClient: Sendable {
     func get(_ url: URL) async throws -> (data: Data, status: Int)
+    func post(_ url: URL, headers: [String: String], body: Data) async throws -> (data: Data, status: Int)
 }
 
 public struct URLSessionHTTPClient: HTTPClient {
@@ -20,6 +21,17 @@ public struct URLSessionHTTPClient: HTTPClient {
 
     public func get(_ url: URL) async throws -> (data: Data, status: Int) {
         let (data, response) = try await session.data(from: url)
+        return (data, (response as? HTTPURLResponse)?.statusCode ?? 0)
+    }
+
+    public func post(_ url: URL, headers: [String: String], body: Data) async throws -> (data: Data, status: Int) {
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.httpBody = body
+        // A local model can take a while on one job.
+        request.timeoutInterval = 180
+        for (name, value) in headers { request.setValue(value, forHTTPHeaderField: name) }
+        let (data, response) = try await session.data(for: request)
         return (data, (response as? HTTPURLResponse)?.statusCode ?? 0)
     }
 }

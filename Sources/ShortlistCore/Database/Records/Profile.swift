@@ -1,7 +1,7 @@
 import Foundation
 import GRDB
 
-/// Your master profile: what the local model scores jobs against and what tailoring starts from.
+/// Your master profile: what jobs are scored against and what tailoring starts from.
 public struct Profile: Codable, Equatable, Sendable, FetchableRecord, PersistableRecord {
     public static let databaseTableName = "profile"
 
@@ -45,9 +45,15 @@ extension Profile {
     }
 
     /// Saves an edit and bumps `version`, so scores made against the old profile go stale.
+    /// Saving with nothing changed keeps the version: rescoring every job costs money.
     public static func save(_ profile: Profile, _ db: Database) throws {
         var updated = profile
         let saved = try Profile.fetchOne(db, key: 1)
+        if let saved {
+            updated.version = saved.version
+            updated.updatedAt = saved.updatedAt
+            if updated == saved { return }
+        }
         updated.version = (saved?.version ?? 0) + 1
         updated.updatedAt = .now
         try updated.save(db)

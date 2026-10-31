@@ -65,11 +65,11 @@ struct RootView: View {
             NetworkView()
         case .today:
             ComingSoon(item: item, step: "Step 4",
-                       blurb: "Your top 15 matches for the day, with the job, the AI's reasoning and who you know there, side by side. Plus your progress toward 10 applications.")
+                       blurb: "Your top 15 matches for the day, with the job, the AI's reasoning and who you know there, side by side. Plus your progress toward 10 applications. For now, find today's picks in All Jobs.")
         case .allJobs:
             JobsView()
         case .profile:
-            ComingSoon(item: item, step: "Step 3", blurb: "Your master profile and resume: what jobs are scored against and what tailoring starts from.")
+            ProfileView()
         case .sources:
             SourcesView()
         }

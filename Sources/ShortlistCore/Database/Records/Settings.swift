@@ -4,7 +4,7 @@ import GRDB
 /// App-wide settings, each stored as JSON under a key in the `setting` table.
 public enum Settings {
     /// Only jobs whose title matches one of these are kept. It's the cheap first cut, before the
-    /// local model reads anything.
+    /// scoring model reads anything.
     public static let defaultTitleKeywords = [
         "product design", "ux", "ui", "design lead", "design manager", "head of design",
         "product manager", "product lead", "head of product", "product owner",
@@ -19,6 +19,24 @@ public enum Settings {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         try setValue(cleaned, for: "titleKeywords", db)
+    }
+
+    public static func scoring(_ db: Database) throws -> ScoringSettings {
+        try value(for: "scoring", db) ?? ScoringSettings()
+    }
+
+    public static func setScoring(_ scoring: ScoringSettings, _ db: Database) throws {
+        try setValue(scoring, for: "scoring", db)
+    }
+
+    public static func scoreChecks(_ db: Database) throws -> [ScoreCheck.Result] {
+        try value(for: "scoreChecks", db) ?? []
+    }
+
+    /// Keeps the latest check for each model, so models can be compared side by side.
+    public static func addScoreCheck(_ result: ScoreCheck.Result, _ db: Database) throws {
+        let others = try scoreChecks(db).filter { $0.model != result.model }
+        try setValue(others + [result], for: "scoreChecks", db)
     }
 
     // MARK: Storage

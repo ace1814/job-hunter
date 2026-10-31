@@ -36,6 +36,26 @@ final class AppModel {
     var jobSearch = "" {
         didSet { if jobSearch != oldValue { observeJobs() } }
     }
+    var jobOrder = JobOrder.bestMatch {
+        didSet { if jobOrder != oldValue { observeJobs() } }
+    }
+
+    // Profile and scoring
+    private(set) var profile = Profile()
+    private(set) var scoring = ScoringSettings()
+    private(set) var hasOpenAIKey = OpenAIKey.exists
+    private(set) var pendingScores = 0
+    private(set) var labeledJobs = 0
+    private(set) var todayCount = 0
+    private(set) var scoreChecks: [ScoreCheck.Result] = []
+    private(set) var scoringProgress: (done: Int, total: Int)?
+    private(set) var scoringMessage: String?
+    private(set) var isCheckingModel = false
+    private(set) var checkMessage: String?
+    private(set) var isImportingResume = false
+    private(set) var resumeMessage: String?
+    var isScoring: Bool { scoringTask != nil }
+    private var scoringTask: Task<Void, Never>?
 
     @ObservationIgnored private var observations: [Task<Void, Never>] = []
     @ObservationIgnored private var jobsObservation: Task<Void, Never>?
@@ -49,6 +69,7 @@ final class AppModel {
         }
         observe()
         observeJobs()
+        Task { await fillToday() }
     }
 
     // MARK: Observation
@@ -61,13 +82,36 @@ final class AppModel {
         }) { model, value in
             (model.sources, model.leads, model.titleKeywords) = value
         })
+        observations.append(watch(reader, { db in
+            ScoringState(
+                profile: try Profile.current(db), scoring: try Settings.scoring(db),
+                pending: try JobScorer.pendingCount(db), labeled: try JobLabel.fetchCount(db),
+                today: try DailyQueueEntry.filter(Column("day") == Day.today).fetchCount(db),
+                checks: try Settings.scoreChecks(db))
+        }) { model, state in
+            model.profile = state.profile
+            model.scoring = state.scoring
+            model.pendingScores = state.pending
+            model.labeledJobs = state.labeled
+            model.todayCount = state.today
+            model.scoreChecks = state.checks
+        })
+    }
+
+    private struct ScoringState: Sendable {
+        var profile: Profile
+        var scoring: ScoringSettings
+        var pending: Int
+        var labeled: Int
+        var today: Int
+        var checks: [ScoreCheck.Result]
     }
 
     private func observeJobs() {
         guard let reader = database?.reader else { return }
         jobsObservation?.cancel()
-        let search = jobSearch
-        jobsObservation = watch(reader, { try JobListItem.open(matching: search, $0) }) { $0.jobs = $1 }
+        let (search, order) = (jobSearch, jobOrder)
+        jobsObservation = watch(reader, { try JobListItem.open(matching: search, order: order, $0) }) { $0.jobs = $1 }
     }
 
     private func watch<Value: Sendable>(
@@ -125,6 +169,7 @@ final class AppModel {
         do {
             let report = try await JobIngestor(database: database, http: http).refreshAll(force: force)
             refreshMessage = Self.describe(report)
+            await fillToday()
         } catch {
             refreshMessage = error.localizedDescription
         }
@@ -209,5 +254,130 @@ final class AppModel {
     func referrals(for job: Job) -> [ReferralFlag] {
         guard let id = job.id else { return [] }
         return (try? database?.reader.read { try ReferralFlag.forJob(id, $0) }) ?? []
+    }
+
+    /// Sets your own label, or clears it when you pick the same one again.
+    func setLabel(_ label: JobLabelValue, for item: JobListItem) {
+        try? database?.writer.write { db in
+            if item.label == label {
+                _ = try JobLabel.deleteOne(db, key: item.id)
+            } else {
+                try JobLabel(jobId: item.id, label: label).save(db)
+            }
+        }
+    }
+
+    // MARK: Profile
+
+    func save(_ profile: Profile) {
+        try? database?.writer.write { try Profile.save(profile, $0) }
+    }
+
+    func save(_ scoring: ScoringSettings) {
+        try? database?.writer.write { try Settings.setScoring(scoring, $0) }
+    }
+
+    func saveOpenAIKey(_ key: String) {
+        let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        do {
+            try OpenAIKey.save(trimmed)
+            scoringMessage = nil
+        } catch {
+            scoringMessage = "Couldn't save the key: \(error.localizedDescription)"
+        }
+        hasOpenAIKey = OpenAIKey.exists
+    }
+
+    func removeOpenAIKey() {
+        OpenAIKey.delete()
+        hasOpenAIKey = OpenAIKey.exists
+    }
+
+    private func makeClient() throws -> any ModelClient {
+        try scoring.makeClient(apiKey: scoring.provider == .openAI ? OpenAIKey.load() : nil, http: http)
+    }
+
+    /// Reads a resume file into your profile. You review it on the Profile screen.
+    func importResume(from url: URL) async {
+        guard !isImportingResume else { return }
+        isImportingResume = true
+        defer { isImportingResume = false }
+
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        do {
+            let text = try ResumeImporter.text(of: url)
+            let output = try await ResumeImporter(client: makeClient()).extract(from: text)
+            var updated = profile
+            updated.masterResume = output.resume
+            if updated.headline.isEmpty { updated.headline = output.headline }
+            save(updated)
+            resumeMessage = "Read \(output.resume.experience.count) roles from \(url.lastPathComponent). Check them below."
+        } catch {
+            resumeMessage = error.localizedDescription
+        }
+    }
+
+    // MARK: Scoring
+
+    /// Scores waiting jobs, then fills today's top picks.
+    func scoreJobs() {
+        guard let database, scoringTask == nil else { return }
+        scoringMessage = nil
+        scoringTask = Task {
+            defer {
+                scoringTask = nil
+                scoringProgress = nil
+            }
+            do {
+                let client = try makeClient()
+                scoringProgress = (0, 0)
+                let report = try await JobScorer(database: database, client: client).run { done, total in
+                    Task { @MainActor [weak self] in
+                        guard let self, self.scoringTask != nil else { return }
+                        self.scoringProgress = (done, total)
+                    }
+                }
+                // In its own task, so a pressed Stop doesn't cancel this write too.
+                let added = try await Task { try await database.writer.write { try DailyQueue.fill($0) } }.value
+                scoringMessage = Self.describe(report, model: client.name, addedToToday: added)
+            } catch {
+                scoringMessage = error.localizedDescription
+            }
+        }
+    }
+
+    func stopScoring() {
+        scoringTask?.cancel()
+    }
+
+    /// Picks today's list from scores you already have, which a new day needs even with nothing to score.
+    private func fillToday() async {
+        _ = try? await database?.writer.write { try DailyQueue.fill($0) }
+    }
+
+    private static func describe(_ report: JobScorer.Report, model: String, addedToToday: Int) -> String {
+        var parts = ["\(report.scored) scored"]
+        if addedToToday > 0 { parts.append("\(addedToToday) added to today") }
+        if let dollars = Pricing.dollars(model: model, usage: report.usage), report.usage.input > 0 {
+            parts.append(String(format: "about $%.3f", dollars))
+        }
+        if report.failed > 0 { parts.append("\(report.failed) failed") }
+        if let reason = report.stoppedBy ?? report.firstFailure { parts.append(reason) }
+        return parts.joined(separator: " · ")
+    }
+
+    /// Runs the labeled jobs through the chosen model and records how well it agrees with you.
+    func checkModel() async {
+        guard let database, !isCheckingModel else { return }
+        isCheckingModel = true
+        checkMessage = nil
+        defer { isCheckingModel = false }
+        do {
+            _ = try await ScoreCheck(database: database, client: makeClient()).run()
+        } catch {
+            checkMessage = error.localizedDescription
+        }
     }
 }

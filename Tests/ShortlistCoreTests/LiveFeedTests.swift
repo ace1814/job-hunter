@@ -44,4 +44,20 @@ final class LiveFeedTests: XCTestCase {
             print("LIVE boards for \(company): " + (boards.isEmpty ? "none" : boards.map { "\($0.kind.rawValue)/\($0.boardID) (\($0.openJobs))" }.joined(separator: ", ")))
         }
     }
+
+    /// One real scoring call, which costs a fraction of a cent. Also needs OPENAI_API_KEY.
+    func test_openAIScoresAJob() async throws {
+        let key = ProcessInfo.processInfo.environment["OPENAI_API_KEY"] ?? ""
+        try XCTSkipIf(key.isEmpty, "set OPENAI_API_KEY to run")
+        let client = try ScoringSettings().makeClient(apiKey: key, http: URLSessionHTTPClient())
+        let profile = Profile(headline: "Senior Product Designer", targetRoles: ["Senior Product Designer"], locations: ["India"])
+        let job = Job(companyName: "Example", title: "Senior Product Designer", location: "Bengaluru", remotePolicy: .hybrid,
+                      url: "https://example.com", descriptionText: "Design our fintech mobile app. 6+ years of product design.")
+
+        let reply = try await client.complete(ScoringPrompt.request(job: job, profile: profile))
+        let assessment = try Assessment.parse(reply.json)
+
+        print("LIVE \(client.name): \(assessment), \(reply.usage)")
+        XCTAssertGreaterThanOrEqual(assessment.criteria.role, 3)
+    }
 }

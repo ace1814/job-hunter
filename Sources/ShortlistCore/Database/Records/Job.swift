@@ -99,7 +99,7 @@ public struct Job: Codable, Identifiable, Equatable, Sendable, FetchableRecord, 
     public static let application = hasOne(JobApplication.self)
 }
 
-/// The local model's verdict on one job, against one version of your profile.
+/// The scoring model's verdict on one job, against one version of your profile.
 public struct JobScore: Codable, Equatable, Sendable, FetchableRecord, PersistableRecord {
     public static let databaseTableName = "jobScore"
 
@@ -112,9 +112,11 @@ public struct JobScore: Codable, Equatable, Sendable, FetchableRecord, Persistab
     public var model: String
     public var profileVersion: Int
     public var scoredAt: Date
+    public var criteria: Rubric.Criteria?
 
     public init(jobId: Int64, score: Int, rationale: String, strengths: [String] = [], gaps: [String] = [],
-                dealbreakerHit: Bool = false, model: String, profileVersion: Int, scoredAt: Date = .now) {
+                dealbreakerHit: Bool = false, model: String, profileVersion: Int, scoredAt: Date = .now,
+                criteria: Rubric.Criteria? = nil) {
         self.jobId = jobId
         self.score = min(max(score, 0), 100)
         self.rationale = rationale
@@ -124,5 +126,21 @@ public struct JobScore: Codable, Equatable, Sendable, FetchableRecord, Persistab
         self.model = model
         self.profileVersion = profileVersion
         self.scoredAt = scoredAt
+        self.criteria = criteria
+    }
+}
+
+/// Your own call on a job, used to check how well a model's scores agree with you.
+public struct JobLabel: Codable, Equatable, Sendable, FetchableRecord, PersistableRecord {
+    public static let databaseTableName = "jobLabel"
+
+    public var jobId: Int64
+    public var label: JobLabelValue
+    public var labeledAt: Date
+
+    public init(jobId: Int64, label: JobLabelValue, labeledAt: Date = .now) {
+        self.jobId = jobId
+        self.label = label
+        self.labeledAt = labeledAt
     }
 }

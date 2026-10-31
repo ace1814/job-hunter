@@ -7,6 +7,7 @@ final class StubHTTP: HTTPClient, @unchecked Sendable {
     private let lock = NSLock()
     private var responses: [String: (Data, Int)] = [:]
     private var requested: [String] = []
+    private var posted: [(headers: [String: String], body: Data)] = []
 
     func serve(_ url: String, fixture name: String, status: Int = 200) throws {
         let parts = name.split(separator: ".")
@@ -23,7 +24,19 @@ final class StubHTTP: HTTPClient, @unchecked Sendable {
         lock.withLock { responses[url] = (data, status) }
     }
 
+    /// Bodies of POST requests, oldest first.
+    var postBodies: [Data] { lock.withLock { posted.map(\.body) } }
+    var postHeaders: [[String: String]] { lock.withLock { posted.map(\.headers) } }
+
     var requests: [String] { lock.withLock { requested } }
+
+    func post(_ url: URL, headers: [String: String], body: Data) async throws -> (data: Data, status: Int) {
+        lock.withLock {
+            posted.append((headers, body))
+            requested.append(url.absoluteString)
+            return responses[url.absoluteString] ?? (Data("Not Found".utf8), 404)
+        }
+    }
 
     func get(_ url: URL) async throws -> (data: Data, status: Int) {
         lock.withLock {

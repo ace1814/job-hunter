@@ -208,6 +208,19 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v3") { db in
+            try db.alter(table: "jobScore") { t in
+                // The rubric answers the score was worked out from.
+                t.add(column: "criteria", .jsonText)
+            }
+            // Your own yes / maybe / no on a job. The model check measures scores against these.
+            try db.create(table: "jobLabel") { t in
+                t.primaryKey { t.belongsTo("job", onDelete: .cascade) }
+                t.column("label", .text).notNull()
+                t.column("labeledAt", .datetime).notNull()
+            }
+        }
+
         return migrator
     }
 }

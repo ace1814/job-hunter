@@ -29,6 +29,11 @@ public enum SourceKind: String, Codable, CaseIterable, Sendable, DatabaseValueCo
     case rss
 }
 
+/// Would you apply to this job? Your answer, not the model's.
+public enum JobLabelValue: String, Codable, CaseIterable, Sendable, DatabaseValueConvertible {
+    case yes, maybe, no
+}
+
 /// How sure a referral flag is.
 public enum ReferralConfidence: String, Codable, CaseIterable, Sendable, DatabaseValueConvertible, Comparable {
     /// The normalized names are the same: "Razorpay" and "Razorpay Software Pvt Ltd".

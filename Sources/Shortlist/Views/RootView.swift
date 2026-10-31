@@ -28,13 +28,13 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
 
 struct RootView: View {
     @Environment(AppModel.self) private var model
-    @State private var selection: SidebarItem? = .network
+    @State private var selection: SidebarItem? = .today
 
     var body: some View {
         NavigationSplitView {
             List(selection: $selection) {
                 Section {
-                    row(.today)
+                    row(.today).badge(model.today.filter(\.job.status.isWaiting).count)
                     row(.allJobs)
                 }
                 Section("Setup") {
@@ -64,8 +64,7 @@ struct RootView: View {
         case .network:
             NetworkView()
         case .today:
-            ComingSoon(item: item, step: "Step 4",
-                       blurb: "Your top 15 matches for the day, with the job, the AI's reasoning and who you know there, side by side. Plus your progress toward 10 applications. For now, find today's picks in All Jobs.")
+            TodayView { selection = $0 }
         case .allJobs:
             JobsView()
         case .profile:
@@ -73,22 +72,5 @@ struct RootView: View {
         case .sources:
             SourcesView()
         }
-    }
-}
-
-private struct ComingSoon: View {
-    let item: SidebarItem
-    let step: String
-    let blurb: String
-
-    var body: some View {
-        ContentUnavailableView {
-            Label(item.title, systemImage: item.symbol)
-        } description: {
-            Text(blurb)
-        } actions: {
-            Text("Coming in \(step)").font(.callout).foregroundStyle(.secondary)
-        }
-        .navigationTitle(item.title)
     }
 }

@@ -1,8 +1,7 @@
 import ShortlistCore
 import SwiftUI
 
-/// Every open job from your sources, searchable, with scores and today's picks. The full daily
-/// view comes in Step 4.
+/// Every open job from your sources, searchable, with scores.
 struct JobsView: View {
     @Environment(AppModel.self) private var model
     @State private var selection: JobListItem.ID?
@@ -10,8 +9,11 @@ struct JobsView: View {
     var body: some View {
         @Bindable var model = model
         HSplitView {
-            list
-                .frame(minWidth: 300, idealWidth: 380)
+            VStack(spacing: 0) {
+                ScoreBar()
+                list
+            }
+            .frame(minWidth: 300, idealWidth: 380)
             Group {
                 if let item = model.jobs.first(where: { $0.id == selection }) {
                     JobDetail(item: item)
@@ -22,20 +24,16 @@ struct JobsView: View {
             .frame(minWidth: 360, maxWidth: .infinity, maxHeight: .infinity)
         }
         .navigationTitle("All Jobs")
-        .navigationSubtitle(subtitle)
+        .navigationSubtitle("\(model.jobs.count) open")
         .searchable(text: $model.jobSearch, prompt: "Search titles, companies, descriptions")
         .toolbar {
             ToolbarItem {
                 Picker("Show", selection: $model.jobOrder) {
                     Text("Best Match").tag(JobOrder.bestMatch)
                     Text("Newest").tag(JobOrder.newest)
-                    Text("Today (\(model.todayCount))").tag(JobOrder.today)
                 }
                 .pickerStyle(.segmented)
                 .help("Change which jobs show and in what order")
-            }
-            ToolbarItem {
-                scoreButton
             }
             ToolbarItem {
                 Button {
@@ -53,56 +51,19 @@ struct JobsView: View {
         }
     }
 
-    private var subtitle: String {
-        if let progress = model.scoringProgress {
-            return progress.total == 0 ? "Scoring…" : "Scoring \(progress.done) of \(progress.total)"
-        }
-        return model.scoringMessage ?? "\(model.jobs.count) open · \(model.pendingScores) to score"
-    }
-
-    @ViewBuilder
-    private var scoreButton: some View {
-        if model.isScoring {
-            Button {
-                model.stopScoring()
-            } label: {
-                Label("Stop", systemImage: "stop.circle")
-            }
-            .help("Stop scoring. Finished jobs keep their scores.")
-        } else {
-            Button {
-                model.scoreJobs()
-            } label: {
-                Label("Score", systemImage: "sparkles")
-            }
-            .disabled(model.pendingScores == 0)
-            .help("Score up to \(JobScorer.defaultLimit) waiting jobs with \(model.scoring.modelName)")
-        }
-    }
-
     @ViewBuilder
     private var list: some View {
         if model.jobs.isEmpty {
             ContentUnavailableView {
-                Label(emptyTitle, systemImage: "tray")
+                Label(model.jobSearch.isEmpty ? "No jobs yet" : "No matches", systemImage: "tray")
             } description: {
-                Text(emptyHint)
+                Text(model.jobSearch.isEmpty ? "Add sources, then refresh." : "Try fewer words.")
             }
         } else {
             List(model.jobs, selection: $selection) { item in
                 JobRow(item: item)
             }
         }
-    }
-
-    private var emptyTitle: String {
-        if !model.jobSearch.isEmpty { return "No matches" }
-        return model.jobOrder == .today ? "No picks yet" : "No jobs yet"
-    }
-
-    private var emptyHint: String {
-        if !model.jobSearch.isEmpty { return "Try fewer words." }
-        return model.jobOrder == .today ? "Score your jobs to fill today's list." : "Add sources, then refresh."
     }
 }
 
@@ -128,7 +89,7 @@ private struct ScoreBadge: View {
     }
 }
 
-private struct JobRow: View {
+struct JobRow: View {
     let item: JobListItem
 
     var body: some View {
@@ -157,7 +118,7 @@ private struct JobRow: View {
     }
 }
 
-private struct JobDetail: View {
+struct JobDetail: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openURL) private var openURL
     let item: JobListItem
@@ -204,16 +165,8 @@ private struct JobDetail: View {
                     .background(.green.opacity(0.08), in: .rect(cornerRadius: 8))
                 }
 
-                HStack(spacing: 14) {
-                    Button {
-                        if let url = URL(string: job.applyURL ?? job.url) { openURL(url) }
-                    } label: {
-                        Label("Open Posting", systemImage: "arrow.up.right.square")
-                    }
-                    .buttonStyle(.borderedProminent)
-
-                    LabelPicker(item: item)
-                }
+                actions(for: item)
+                LabelPicker(item: item)
 
                 Divider()
                 Text(job.descriptionText.isEmpty ? "No description in the feed. Open the posting to read it." : job.descriptionText)
@@ -222,6 +175,33 @@ private struct JobDetail: View {
             }
             .padding(20)
             .frame(maxWidth: 760, alignment: .leading)
+        }
+    }
+
+    /// Apply only opens the posting. You send the application yourself, then record it here.
+    private func actions(for item: JobListItem) -> some View {
+        HStack(spacing: 8) {
+            Button {
+                if let url = URL(string: item.job.applyURL ?? item.job.url) { openURL(url) }
+            } label: {
+                Label("Apply", systemImage: "arrow.up.right.square")
+            }
+            .buttonStyle(.borderedProminent)
+            .help("Opens the posting in your browser")
+
+            switch item.job.status {
+            case .dismissed:
+                Text("Passed").foregroundStyle(.secondary)
+                Button("Undo") { model.restore(item) }
+            case .applied, .interviewing, .rejected, .offer:
+                Label("Applied", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                if item.job.status == .applied {
+                    Button("Undo") { model.undoApplied(item) }
+                }
+            default:
+                Button("Mark Applied") { model.markApplied(item) }
+                Button("Not for Me") { model.dismiss(item) }
+            }
         }
     }
 

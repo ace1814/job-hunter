@@ -46,7 +46,8 @@ final class AppModel {
     private(set) var hasOpenAIKey = OpenAIKey.exists
     private(set) var pendingScores = 0
     private(set) var labeledJobs = 0
-    private(set) var todayCount = 0
+    private(set) var today: [JobListItem] = []
+    private(set) var todayLog = DailyLog(day: Day.today)
     private(set) var scoreChecks: [ScoreCheck.Result] = []
     private(set) var scoringProgress: (done: Int, total: Int)?
     private(set) var scoringMessage: String?
@@ -70,6 +71,12 @@ final class AppModel {
         observe()
         observeJobs()
         Task { await fillToday() }
+        // Left open past midnight, the app still starts the new day's list.
+        observations.append(Task { [weak self] in
+            for await _ in NotificationCenter.default.notifications(named: .NSCalendarDayChanged) {
+                await self?.fillToday()
+            }
+        })
     }
 
     // MARK: Observation
@@ -86,15 +93,18 @@ final class AppModel {
             ScoringState(
                 profile: try Profile.current(db), scoring: try Settings.scoring(db),
                 pending: try JobScorer.pendingCount(db), labeled: try JobLabel.fetchCount(db),
-                today: try DailyQueueEntry.filter(Column("day") == Day.today).fetchCount(db),
                 checks: try Settings.scoreChecks(db))
         }) { model, state in
             model.profile = state.profile
             model.scoring = state.scoring
             model.pendingScores = state.pending
             model.labeledJobs = state.labeled
-            model.todayCount = state.today
             model.scoreChecks = state.checks
+        })
+        observations.append(watch(reader, { db in
+            (try JobListItem.open(order: .today, db), try Pipeline.log(db))
+        }) { model, value in
+            (model.today, model.todayLog) = value
         })
     }
 
@@ -103,7 +113,6 @@ final class AppModel {
         var scoring: ScoringSettings
         var pending: Int
         var labeled: Int
-        var today: Int
         var checks: [ScoreCheck.Result]
     }
 
@@ -267,6 +276,29 @@ final class AppModel {
         }
     }
 
+    // MARK: Acting on jobs
+
+    func markApplied(_ item: JobListItem) {
+        try? database?.writer.write { try Pipeline.markApplied(item.id, $0) }
+    }
+
+    func undoApplied(_ item: JobListItem) {
+        try? database?.writer.write { try Pipeline.undoApplied(item.id, $0) }
+    }
+
+    func dismiss(_ item: JobListItem) {
+        try? database?.writer.write { try Pipeline.dismiss(item.id, $0) }
+    }
+
+    func restore(_ item: JobListItem) {
+        try? database?.writer.write { try Pipeline.restore(item.id, $0) }
+    }
+
+    /// Everything scoring needs is in place.
+    var isReadyToScore: Bool {
+        !sources.isEmpty && profile.isScoreable && (scoring.provider == .ollama || hasOpenAIKey)
+    }
+
     // MARK: Profile
 
     func save(_ profile: Profile) {
@@ -350,6 +382,10 @@ final class AppModel {
 
     func stopScoring() {
         scoringTask?.cancel()
+    }
+
+    func clearScoringMessage() {
+        scoringMessage = nil
     }
 
     /// Picks today's list from scores you already have, which a new day needs even with nothing to score.

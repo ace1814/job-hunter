@@ -27,7 +27,7 @@ Needs macOS 26 and Xcode 26. The database lives at
 2. Sources: Greenhouse, Lever, Ashby, SmartRecruiters boards; Remotive, RemoteOK, Himalayas, HN; RSS ✅
 3. Scoring with `gpt-6-luna` (Ollama as the offline option), the Profile screen, the daily top 15,
    and the model check ✅
-4. Dashboard: split view, job detail, rationale, referral flags
+4. Dashboard: Today split view, job detail, rationale, referral flags, X/10 count ✅
 5. Tailoring with OpenAI and a PDF resume
 6. Progress tracker, streaks, morning refresh
 7. Web access: a small web server in the app serves the dashboard to any browser, reached

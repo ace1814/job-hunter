@@ -7,7 +7,6 @@ struct ProfileView: View {
     @Environment(AppModel.self) private var model
     @State private var draft = Draft()
     @State private var isPickingResume = false
-    @State private var keyText = ""
 
     /// The form's text, with lists as comma-separated lines.
     private struct Draft: Equatable {
@@ -70,12 +69,13 @@ struct ProfileView: View {
 
     var body: some View {
         Form {
+            scoringSection
             resumeSection
             targetSection
-            scoringSection
             checkSection
         }
         .formStyle(.grouped)
+        .textFieldStyle(.roundedBorder)
         .navigationTitle("Profile")
         .toolbar {
             ToolbarItem {
@@ -157,23 +157,7 @@ struct ProfileView: View {
             }
             if model.scoring.provider == .openAI {
                 TextField("Model", text: binding(\.openAIModel))
-                if model.hasOpenAIKey {
-                    LabeledContent("API key") {
-                        HStack {
-                            Label("Saved in Keychain", systemImage: "checkmark.seal").foregroundStyle(.green)
-                            Button("Remove") { model.removeOpenAIKey() }
-                        }
-                    }
-                } else {
-                    HStack {
-                        SecureField("API key", text: $keyText)
-                        Button("Save") {
-                            model.saveOpenAIKey(keyText)
-                            keyText = ""
-                        }
-                        .disabled(keyText.isEmpty)
-                    }
-                }
+                OpenAIKeyField()
             } else {
                 TextField("Model", text: binding(\.ollamaModel))
             }

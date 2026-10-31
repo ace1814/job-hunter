@@ -46,8 +46,9 @@ struct SourcesView: View {
                 }
             }
 
-            if !model.leads.isEmpty {
+            if model.network.connectionCount > 0 {
                 Section {
+                    NetworkBoardsRow()
                     ForEach(model.leads) { lead in
                         LeadRow(lead: lead)
                     }
@@ -128,6 +129,46 @@ private struct SourceRow: View {
             parts.append("not fetched yet")
         }
         return parts.joined(separator: " · ")
+    }
+}
+
+/// Connects every job board it can find across your network in one go.
+private struct NetworkBoardsRow: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let progress = model.boardScanProgress {
+                HStack(spacing: 10) {
+                    if progress.total > 0 {
+                        ProgressView(value: Double(progress.checked), total: Double(progress.total))
+                    } else {
+                        ProgressView().controlSize(.small)
+                    }
+                    Text("\(progress.checked) of \(progress.total) · \(progress.connected) connected")
+                        .font(.callout.monospacedDigit())
+                    Button("Stop") { model.stopBoardScan() }
+                        .help("Boards found so far stay connected. Connecting again carries on from here.")
+                }
+            } else {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(model.boardsToScan > 0
+                             ? "\(model.boardsToScan) companies to check"
+                             : "All your companies are checked").fontWeight(.medium)
+                        Text("Connects the boards it can confirm belong to your company, starting with where you know the most people.")
+                            .font(.callout).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button("Connect Boards") { model.connectNetworkBoards() }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(model.boardsToScan == 0)
+                }
+            }
+            if let message = model.boardScanMessage {
+                Text(message).font(.callout).foregroundStyle(.secondary)
+            }
+        }
     }
 }
 

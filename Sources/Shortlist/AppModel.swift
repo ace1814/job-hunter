@@ -26,6 +26,12 @@ final class AppModel {
     private(set) var refreshMessage: String?
     private(set) var boardSearches: [String: BoardSearch] = [:]
 
+    private(set) var boardsToScan = 0
+    private(set) var boardScanProgress: NetworkBoardScanner.Progress?
+    private(set) var boardScanMessage: String?
+    private var boardScanTask: Task<Void, Never>?
+    var isScanningBoards: Bool { boardScanTask != nil }
+
     enum BoardSearch: Equatable {
         case searching
         case found([BoardFinder.Board])
@@ -85,9 +91,10 @@ final class AppModel {
         guard let reader = database?.reader else { return }
         observations.append(watch(reader, { try NetworkSnapshot.fetch($0) }) { $0.network = $1 })
         observations.append(watch(reader, { db in
-            (try SourceListItem.all(db), try NetworkLead.unwatched(limit: 15, db), try Settings.titleKeywords(db))
+            (try SourceListItem.all(db), try NetworkLead.unwatched(limit: 15, db), try Settings.titleKeywords(db),
+             try NetworkBoardScanner.companiesToCheck(db).count)
         }) { model, value in
-            (model.sources, model.leads, model.titleKeywords) = value
+            (model.sources, model.leads, model.titleKeywords, model.boardsToScan) = value
         })
         observations.append(watch(reader, { db in
             ScoringState(
@@ -256,6 +263,38 @@ final class AppModel {
     func watch(_ board: BoardFinder.Board, for lead: NetworkLead) async {
         boardSearches[lead.id] = nil
         await add(Source(kind: board.kind, name: lead.company.name, boardID: board.boardID))
+    }
+
+    /// Checks every company you know people at for a public job board, adds the ones that are
+    /// confirmed, then fetches their jobs.
+    func connectNetworkBoards() {
+        guard let database, boardScanTask == nil else { return }
+        boardScanMessage = nil
+        boardScanProgress = NetworkBoardScanner.Progress()
+        let http = http
+        boardScanTask = Task {
+            defer {
+                boardScanTask = nil
+                boardScanProgress = nil
+            }
+            do {
+                let report = try await NetworkBoardScanner(database: database, http: http).run { progress in
+                    Task { @MainActor [weak self] in
+                        guard let self, self.boardScanTask != nil else { return }
+                        self.boardScanProgress = progress
+                    }
+                }
+                let count = report.connected.count
+                boardScanMessage = "\(report.checked) companies checked · \(count) board\(count == 1 ? "" : "s") connected"
+                if count > 0 { await refreshAll(force: true) }
+            } catch {
+                boardScanMessage = error.localizedDescription
+            }
+        }
+    }
+
+    func stopBoardScan() {
+        boardScanTask?.cancel()
     }
 
     // MARK: Jobs

@@ -54,7 +54,7 @@ final class SourceCatalogTests: XCTestCase {
                    json: #"{"offset":0,"limit":1,"totalFound":0,"content":[]}"#)
 
         let boards = await BoardFinder(http: http).find(company: "Figma, Inc.")
-        XCTAssertEqual(boards, [.init(kind: .greenhouse, boardID: "figma", openJobs: 2)])
+        XCTAssertEqual(boards, [.init(kind: .greenhouse, boardID: "figma", openJobs: 2, ownerName: "Figma")])
         // Greenhouse, Lever, Ashby and SmartRecruiters were all tried.
         XCTAssertEqual(http.requests.count, 4)
     }

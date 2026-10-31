@@ -60,4 +60,27 @@ final class LiveFeedTests: XCTestCase {
         print("LIVE \(client.name): \(assessment), \(reply.usage)")
         XCTAssertGreaterThanOrEqual(assessment.criteria.role, 3)
     }
+
+    /// Scans the companies listed in the file at SHORTLIST_COMPANIES, one per line, into a
+    /// throwaway database, and prints what would be connected.
+    func test_scanningRealCompanies() async throws {
+        let path = ProcessInfo.processInfo.environment["SHORTLIST_COMPANIES"] ?? ""
+        try XCTSkipIf(path.isEmpty, "set SHORTLIST_COMPANIES to run")
+        let database = try AppDatabase.inMemory()
+        let names = try String(contentsOfFile: path, encoding: .utf8).split(separator: "\n").map(String.init)
+        try await database.writer.write { db in
+            for name in names {
+                var connection = Connection(firstName: "A", lastName: name, company: name, position: "Designer")
+                try connection.insert(db)
+            }
+        }
+
+        let started = Date.now
+        let report = try await NetworkBoardScanner(database: database, http: URLSessionHTTPClient()).run()
+
+        for board in report.connected {
+            print("LIVE board: \(board.company) → \(board.kind.rawValue)/\(board.boardID) (\(board.openJobs))")
+        }
+        print("LIVE scan: \(report.checked) checked, \(report.connected.count) connected, \(Int(Date.now.timeIntervalSince(started)))s")
+    }
 }

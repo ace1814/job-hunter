@@ -108,7 +108,53 @@ public struct BoardFinder: Sendable {
         public var kind: SourceKind
         public var boardID: String
         public var openJobs: Int
+        /// The company name the board gives for itself, where it gives one.
+        public var ownerName: String?
+        /// What the board's postings say, for boards that don't name their owner.
+        var postingsText: String?
+
         public var id: String { "\(kind.rawValue):\(boardID)" }
+
+        /// Whether this is really `company`'s board, not another one that took the same name.
+        /// Stricter than matching people to jobs: a wrong board adds jobs you never asked for.
+        /// "Air India" isn't "Air", even though both reduce to the same board name.
+        public func belongs(to company: String) -> Bool {
+            let wanted = Self.nameWords(company)
+            guard !wanted.isEmpty else { return false }
+            if let ownerName {
+                return Self.sameCompany(wanted, Self.nameWords(ownerName))
+            }
+            let name = NSRegularExpression.escapedPattern(for: wanted.joined(separator: " "))
+            let pattern = "\\b(?:at|about|join|joining|why) \(name)\\b|\\b\(name)(?: is|'s)\\b"
+            guard let regex = try? NSRegularExpression(pattern: pattern) else { return false }
+            let text = CompanyNormalizer.fold(postingsText ?? "")
+            return regex.numberOfMatches(in: text, range: NSRange(text.startIndex..., in: text)) >= Self.requiredMentions
+        }
+
+        /// A company writes "at Notion" or "Notion is" all through its postings. A stranger's
+        /// postings might mention it, but not like that.
+        private static let requiredMentions = 2
+        private static let legalWords: Set<String> = [
+            "pvt", "private", "ltd", "limited", "inc", "incorporated", "llc", "llp", "corp", "corporation", "co", "plc", "gmbh",
+        ]
+        /// Words a company can add to its name and still be the same company.
+        private static let harmlessWords: Set<String> = [
+            "group", "holdings", "technologies", "technology", "software", "international", "job", "jobs", "board", "careers",
+        ]
+
+        private static func nameWords(_ name: String) -> [String] {
+            CompanyNormalizer.fold(name)
+                .split { !$0.isLetter && !$0.isNumber }
+                .map(String.init)
+                .filter { !legalWords.contains($0) }
+        }
+
+        private static func sameCompany(_ first: [String], _ second: [String]) -> Bool {
+            guard !first.isEmpty, !second.isEmpty else { return false }
+            if first.joined() == second.joined() { return true }
+            let (short, long) = first.count < second.count ? (first, second) : (second, first)
+            return long.starts(with: short) && Set(long.dropFirst(short.count)).isSubset(of: harmlessWords)
+        }
     }
 
     private let http: any HTTPClient
@@ -142,32 +188,49 @@ public struct BoardFinder: Sendable {
         return found.sorted { ($0.openJobs, $1.id) > ($1.openJobs, $0.id) }
     }
 
+    /// The company's own board, when one can be confirmed. Safe to add without asking.
+    public func findConfirmed(company: String) async -> Board? {
+        await find(company: company).first { $0.belongs(to: company) }
+    }
+
     private struct Count: Decodable {
-        var jobs: [Ignored]?
+        var jobs: [Posting]?
+        var content: [Posting]?
         var totalFound: Int?
     }
 
-    private struct Ignored: Decodable {}
+    private struct Posting: Decodable {
+        var company_name: String?
+        var company: Owner?
+
+        struct Owner: Decodable {
+            var name: String?
+        }
+    }
 
     func probe(_ kind: SourceKind, _ slug: String) async -> Board? {
         do {
             switch kind {
             case .greenhouse:
                 let url = try URL.api("https://boards-api.greenhouse.io/v1/boards", [slug, "jobs"])
-                let count = try await http.json(Count.self, from: url).jobs?.count ?? 0
-                return Board(kind: kind, boardID: slug, openJobs: count)
+                let jobs = try await http.json(Count.self, from: url).jobs ?? []
+                return Board(kind: kind, boardID: slug, openJobs: jobs.count, ownerName: jobs.first?.company_name)
             case .lever:
                 let url = try URL.api("https://api.lever.co/v0/postings", [slug], query: ["mode": "json"])
-                return Board(kind: kind, boardID: slug, openJobs: try await http.json([Ignored].self, from: url).count)
+                let data = try await http.okData(from: url)
+                let jobs = try JSONDecoder().decode([Posting].self, from: data)
+                return Board(kind: kind, boardID: slug, openJobs: jobs.count, postingsText: String(decoding: data, as: UTF8.self))
             case .ashby:
                 let url = try URL.api("https://api.ashbyhq.com/posting-api/job-board", [slug])
-                let count = try await http.json(Count.self, from: url).jobs?.count ?? 0
-                return Board(kind: kind, boardID: slug, openJobs: count)
+                let data = try await http.okData(from: url)
+                let count = try JSONDecoder().decode(Count.self, from: data).jobs?.count ?? 0
+                return Board(kind: kind, boardID: slug, openJobs: count, postingsText: String(decoding: data, as: UTF8.self))
             case .smartRecruiters:
                 // SmartRecruiters answers for any name, so only a board with jobs counts.
                 let url = try URL.api("https://api.smartrecruiters.com/v1/companies", [slug, "postings"], query: ["limit": "1"])
-                let count = try await http.json(Count.self, from: url).totalFound ?? 0
-                return count > 0 ? Board(kind: kind, boardID: slug, openJobs: count) : nil
+                let page = try await http.json(Count.self, from: url)
+                let count = page.totalFound ?? 0
+                return count > 0 ? Board(kind: kind, boardID: slug, openJobs: count, ownerName: page.content?.first?.company?.name) : nil
             default:
                 return nil
             }

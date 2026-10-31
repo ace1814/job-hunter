@@ -221,6 +221,15 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v4") { db in
+            // Which network companies have been checked for a job board, so a stopped scan can
+            // pick up where it left off and a finished one doesn't repeat itself.
+            try db.create(table: "boardScan") { t in
+                t.primaryKey("normalizedCompany", .text)
+                t.column("scannedAt", .datetime).notNull()
+            }
+        }
+
         return migrator
     }
 }

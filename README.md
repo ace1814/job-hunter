@@ -33,6 +33,15 @@ Needs macOS 26 and Xcode 26. The database lives at
 7. Web access: a small web server in the app serves the dashboard to any browser, reached
    privately over Tailscale. The Mac stays the engine, and nothing is hosted in the cloud.
 
+## Your network's job boards
+
+Connect Boards on the Sources screen checks every company in your connections for a public
+Greenhouse, Lever, Ashby or SmartRecruiters board, a few at a time, starting with where you know the
+most people. It only connects a board it can confirm is that company's: the board's own name must
+match, or for boards with no name, its postings must talk about the company as themselves.
+Stopping keeps what it found, and connecting again carries on. Each company is rechecked after 30
+days. Companies with their own careers sites, like Google or Microsoft, have no such board.
+
 ## Scoring
 
 The model answers small questions on a 0–4 scale (role, experience, level, location, must-haves)

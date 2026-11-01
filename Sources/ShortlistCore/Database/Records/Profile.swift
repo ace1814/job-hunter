@@ -10,6 +10,7 @@ public struct Profile: Codable, Equatable, Sendable, FetchableRecord, Persistabl
     public var headline: String
     public var targetRoles: [String]
     public var seniority: String
+    public var basedIn: String
     public var locations: [String]
     public var remotePreference: RemotePreference
     public var minSalary: String
@@ -20,7 +21,7 @@ public struct Profile: Codable, Equatable, Sendable, FetchableRecord, Persistabl
 
     public init(
         version: Int = 1, headline: String = "", targetRoles: [String] = [], seniority: String = "",
-        locations: [String] = [], remotePreference: RemotePreference = .any, minSalary: String = "",
+        basedIn: String = "", locations: [String] = [], remotePreference: RemotePreference = .any, minSalary: String = "",
         mustHaves: [String] = [], dealbreakers: [String] = [], masterResume: MasterResume = MasterResume(),
         updatedAt: Date = .now
     ) {
@@ -28,6 +29,7 @@ public struct Profile: Codable, Equatable, Sendable, FetchableRecord, Persistabl
         self.headline = headline
         self.targetRoles = targetRoles
         self.seniority = seniority
+        self.basedIn = basedIn
         self.locations = locations
         self.remotePreference = remotePreference
         self.minSalary = minSalary

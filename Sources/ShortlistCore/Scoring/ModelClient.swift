@@ -56,6 +56,7 @@ public protocol ModelClient: Sendable {
 
 public enum ModelError: LocalizedError, Equatable {
     case missingKey
+    case lockedKey
     case rejectedKey
     case noCredit
     case rateLimited
@@ -71,6 +72,7 @@ public enum ModelError: LocalizedError, Equatable {
     public var errorDescription: String? {
         switch self {
         case .missingKey: "Add your OpenAI key in Profile first."
+        case .lockedKey: "macOS didn't let Shortlist read your key. Press Score again and choose Always Allow."
         case .rejectedKey: "OpenAI rejected the key. Check it in Profile."
         case .noCredit: "Your OpenAI account is out of credit."
         case .rateLimited: "OpenAI is limiting requests. Try again in a minute."
@@ -88,7 +90,7 @@ public enum ModelError: LocalizedError, Equatable {
     /// Errors every later job would hit too, so the run stops instead of repeating them.
     var stopsTheRun: Bool {
         switch self {
-        case .missingKey, .rejectedKey, .noCredit, .badRequest, .unreachable, .emptyProfile: true
+        case .missingKey, .lockedKey, .rejectedKey, .noCredit, .badRequest, .unreachable, .emptyProfile: true
         case .rateLimited, .server, .network, .refused, .truncated, .unreadable: false
         }
     }

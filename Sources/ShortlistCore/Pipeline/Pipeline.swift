@@ -43,6 +43,11 @@ public enum Pipeline {
         try setStatus(isPicked ? .queued : isScored ? .scored : .new, of: jobId, at: .now, db)
     }
 
+    /// Moves an application along after you've sent it.
+    public static func setStage(_ status: JobStatus, of jobId: Int64, at date: Date = .now, _ db: Database) throws {
+        try setStatus(status, of: jobId, at: date, db)
+    }
+
     public static func log(day: String = Day.today, _ db: Database) throws -> DailyLog {
         try DailyLog.fetchOne(db, key: day) ?? DailyLog(day: day)
     }

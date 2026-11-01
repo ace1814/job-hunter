@@ -13,6 +13,7 @@ struct ProfileView: View {
         var headline = ""
         var targetRoles = ""
         var seniority = ""
+        var basedIn = ""
         var locations = ""
         var remotePreference = RemotePreference.any
         var minSalary = ""
@@ -27,6 +28,7 @@ struct ProfileView: View {
             headline = profile.headline
             targetRoles = profile.targetRoles.joined(separator: ", ")
             seniority = profile.seniority
+            basedIn = profile.basedIn
             locations = profile.locations.joined(separator: ", ")
             remotePreference = profile.remotePreference
             minSalary = profile.minSalary
@@ -41,6 +43,7 @@ struct ProfileView: View {
             updated.headline = headline
             updated.targetRoles = Self.list(targetRoles)
             updated.seniority = seniority
+            updated.basedIn = basedIn
             updated.locations = Self.list(locations)
             updated.remotePreference = remotePreference
             updated.minSalary = minSalary
@@ -60,7 +63,8 @@ struct ProfileView: View {
             var draft = Draft()
             draft.targetRoles = "Senior Product Designer, Product Manager"
             draft.seniority = "Senior"
-            draft.locations = "India on-site or hybrid, global remote, US, EU"
+            draft.basedIn = "India"
+            draft.locations = "India on-site or hybrid, global remote"
             return draft
         }
     }
@@ -105,6 +109,7 @@ struct ProfileView: View {
             let starter = Draft.starter
             draft.targetRoles = starter.targetRoles
             draft.seniority = starter.seniority
+            draft.basedIn = starter.basedIn
             draft.locations = starter.locations
         }
     }
@@ -118,7 +123,7 @@ struct ProfileView: View {
                 if model.isImportingResume {
                     Text("Reading your resume…")
                 } else {
-                    Text(model.resumeMessage ?? "Your email and phone number stay on this Mac. The rest goes to \(model.scoring.modelName).")
+                    Text(model.resumeMessage ?? "Your email and phone stay on this Mac. The rest goes to \(model.scoring.modelName).")
                         .foregroundStyle(.secondary)
                 }
             }
@@ -137,6 +142,7 @@ struct ProfileView: View {
         Section("What you're looking for") {
             TextField("Target roles", text: $draft.targetRoles, prompt: Text("Comma separated"))
             TextField("Seniority", text: $draft.seniority)
+            TextField("You live in", text: $draft.basedIn)
             TextField("Where you'll work", text: $draft.locations, prompt: Text("Comma separated"))
             Picker("Work style", selection: $draft.remotePreference) {
                 Text("Any").tag(RemotePreference.any)

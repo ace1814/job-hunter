@@ -83,4 +83,24 @@ final class LiveFeedTests: XCTestCase {
         }
         print("LIVE scan: \(report.checked) checked, \(report.connected.count) connected, \(Int(Date.now.timeIntervalSince(started)))s")
     }
+
+    /// One real tailoring call, which costs a few cents. Also needs OPENAI_API_KEY.
+    func test_openAITailorsAResume() async throws {
+        let key = ProcessInfo.processInfo.environment["OPENAI_API_KEY"] ?? ""
+        try XCTSkipIf(key.isEmpty, "set OPENAI_API_KEY to run")
+        var resume = MasterResume()
+        resume.name = "Test Person"
+        resume.summary = "Product designer with 8 years in fintech."
+        resume.skills = ["Figma", "Research"]
+        resume.experience = [.init(company: "Acme", title: "Lead Designer", start: "2021", bullets: ["Grew activation by 12%", "Led a team of 4"])]
+        let job = Job(companyName: "Example", title: "Senior Product Designer", url: "https://example.com",
+                      descriptionText: "Design our fintech mobile app with a small team.")
+
+        let client = OpenAIClient(model: "gpt-6.1-sol", apiKey: key)
+        let reply = try await client.complete(TailoringPrompt.request(job: job, profile: Profile(masterResume: resume)))
+        let draft = try JSONDecoder().decode(TailoringDraft.self, from: Data(reply.json.utf8))
+
+        print("LIVE \(client.name): \(draft), \(reply.usage)")
+        XCTAssertFalse(draft.coverNote.isEmpty)
+    }
 }

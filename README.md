@@ -2,7 +2,8 @@
 
 A personal, privacy-first job hunting command center for macOS. It pulls jobs from open APIs
 and RSS, scores them with a small AI model, flags where you know someone, and keeps you at 10
-good applications a day. Your data lives on this Mac. It never auto-submits: Apply opens the job in your browser.
+good applications a day. Your data lives on this Mac. It never auto-submits: Apply opens the job in
+your browser, and pressing Submit is always yours.
 
 ## Build
 
@@ -20,6 +21,7 @@ Needs macOS 26 and Xcode 26. The database lives at
   fully tested.
 - `Sources/Shortlist`: the SwiftUI app.
 - `Tests/ShortlistCoreTests`: tests and CSV fixtures.
+- `Extension`: the Chrome and Brave extension that fills in application forms.
 
 ## Roadmap
 
@@ -28,10 +30,31 @@ Needs macOS 26 and Xcode 26. The database lives at
 3. Scoring with `gpt-6-luna` (Ollama as the offline option), the Profile screen, the daily top 15,
    and the model check ✅
 4. Dashboard: Today split view, job detail, rationale, referral flags, X/10 count ✅
-5. Tailoring with OpenAI and a PDF resume
-6. Progress tracker, streaks, morning refresh
-7. Web access: a small web server in the app serves the dashboard to any browser, reached
-   privately over Tailscale. The Mac stays the engine, and nothing is hosted in the cloud.
+5. Tailoring with `gpt-6.1-sol`, a PDF resume, and assisted apply through a browser extension ✅
+6. Progress screen, streaks, morning refresh ✅
+7. Web access: a small web server in the app serves the dashboard to your own devices over
+   Tailscale. The Mac stays the engine, and nothing is hosted in the cloud ✅
+
+## Applying
+
+Prepare Application writes a resume and answers for one job. Employers, titles and dates are copied
+from your master resume by the app. A reworded bullet that adds a number goes back to your original
+words, and skills you don't have are dropped. Materials and the PDF stay in
+`~/Library/Application Support/Shortlist/Applications`.
+
+Apply opens the posting in your browser. On Greenhouse, Lever, Ashby and SmartRecruiters pages the
+extension offers to fill the form from those materials. It never clicks Submit, and it leaves pay,
+visa and personal background questions for you. Press I Submitted It to count the application.
+
+To install it, load the `Extension` folder as an unpacked extension, then paste the token from the
+Connect screen. The extension talks only to the app on `127.0.0.1:8787`.
+
+## Web access
+
+Turn on web access in Connect, with Tailscale running on this Mac and your other device, then open
+the address it shows and sign in with your token. The server listens on this Mac and on its
+Tailscale address only, never on your home or office network. It works while the Mac is awake and
+Shortlist is open.
 
 ## Your network's job boards
 
@@ -46,8 +69,9 @@ days. Companies with their own careers sites, like Google or Microsoft, have no 
 
 The model answers small questions on a 0–4 scale (role, experience, level, location, must-haves)
 and the app works out the 0–100 score in `Rubric`, so scores mean the same across models. A wrong
-role or place caps a job at 40, and a dealbreaker caps it at 20. Today's list takes the top 15 at
-50 or above, and stays in place once picked.
+role or place caps a job at 40, and a dealbreaker caps it at 20. A remote job must be open to
+someone living where your profile says you live. Today's list takes the top 15 at 50 or above, and
+stays in place once picked, unless you change your profile and score the jobs again.
 
 What leaves this Mac when you use OpenAI: each job, your profile and your resume text, sent with
 `store: false`. Your name, email, phone and links are left out of scoring. Importing a resume sends

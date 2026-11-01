@@ -230,6 +230,19 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v5") { db in
+            try db.alter(table: "profile") { t in
+                // Where you live, which decides whether a remote job is open to you.
+                t.add(column: "basedIn", .text).notNull().defaults(to: "")
+            }
+            try db.execute(sql: "UPDATE profile SET basedIn = 'India', version = version + 1")
+            try db.alter(table: "dailyQueue") { t in
+                // The profile a pick was chosen for. A pick from an older profile gives way once
+                // its job has been scored again.
+                t.add(column: "profileVersion", .integer).notNull().defaults(to: 0)
+            }
+        }
+
         return migrator
     }
 }

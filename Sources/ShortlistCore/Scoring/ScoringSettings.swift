@@ -36,6 +36,7 @@ public enum Pricing {
     /// Dollars per million tokens, from OpenAI's pricing page on 2026-10-30.
     private static let perMillion: [String: (input: Double, output: Double)] = [
         "gpt-6-luna": (0.10, 0.50),
+        "gpt-6.1-sol": (2, 10),
     ]
 
     public static func dollars(model: String, usage: TokenUsage) -> Double? {

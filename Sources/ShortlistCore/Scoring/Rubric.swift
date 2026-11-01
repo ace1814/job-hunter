@@ -103,9 +103,12 @@ enum ScoringPrompt {
         - experience: does their background cover what the job asks for? 0 = almost none, \
         2 = about half, 4 = nearly all. Use only what the profile states. Never assume.
         - seniority: does the level match? 0 = far off, 2 = one level off, 4 = matches.
-        - location: can they work where the job requires? 0 = no, such as an on-site job in a \
-        place they didn't list or a remote job limited to a country they aren't in. 2 = unclear \
-        from the posting. 4 = clearly yes.
+        - location: can they do this job from where they live, or in a place they listed? \
+        0 = no: an on-site or hybrid job outside the places they listed, or a remote job limited \
+        to countries or regions that leave out where they live. A remote job that names a country \
+        or region as its location is limited to it, unless the posting says it's open worldwide. \
+        2 = unclear: remote with no stated limit. 4 = clearly yes: open worldwide, or it names \
+        where they live or a region that includes it.
         - mustHaves: how many of their must-haves does the job offer? 0 = none, 4 = all. Use 2 if \
         the posting doesn't say or they listed none.
 
@@ -137,6 +140,7 @@ enum ScoringPrompt {
         add("Headline", profile.headline)
         add("Target roles", profile.targetRoles.joined(separator: "; "))
         add("Seniority", profile.seniority)
+        add("Lives in", profile.basedIn)
         add("Will work in", profile.locations.joined(separator: "; "))
         switch profile.remotePreference {
         case .remoteOnly: lines.append("Work style: remote only")

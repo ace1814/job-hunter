@@ -1,7 +1,9 @@
 import Foundation
 import GRDB
 import Observation
+import ServiceManagement
 import ShortlistCore
+import UserNotifications
 
 /// The app's state: the open database and what the screens show from it.
 /// Screens read live values here; GRDB observation keeps them current after any write.
@@ -64,6 +66,24 @@ final class AppModel {
     var isScoring: Bool { scoringTask != nil }
     private var scoringTask: Task<Void, Never>?
 
+    // Applying
+    private(set) var preparing: Set<Int64> = []
+    private(set) var prepareMessage: String?
+    private(set) var tailoringModel = ""
+
+    // Progress
+    private(set) var stats = ProgressStats()
+    private(set) var appliedJobs: [JobListItem] = []
+
+    // Connect
+    private(set) var serverToken = ""
+    private(set) var webAccess = false
+    private(set) var webAddress: String?
+    private(set) var morningHour: Int?
+    private(set) var launchesAtLogin = SMAppService.mainApp.status == .enabled
+    private(set) var connectMessage: String?
+    @ObservationIgnored private var server: LocalServer?
+
     @ObservationIgnored private var observations: [Task<Void, Never>] = []
     @ObservationIgnored private var jobsObservation: Task<Void, Never>?
 
@@ -76,7 +96,19 @@ final class AppModel {
         }
         observe()
         observeJobs()
-        Task { await fillToday() }
+        Task {
+            await fillToday()
+            await startServer()
+        }
+        // Checks now and then, so the morning refresh runs even with the app left open.
+        observations.append(Task { [weak self] in
+            // Wait for the screens' data to load first: the refresh depends on it.
+            try? await Task.sleep(for: .seconds(10))
+            while !Task.isCancelled {
+                await self?.runMorningRefreshIfDue()
+                try? await Task.sleep(for: .seconds(900))
+            }
+        })
         // Left open past midnight, the app still starts the new day's list.
         observations.append(Task { [weak self] in
             for await _ in NotificationCenter.default.notifications(named: .NSCalendarDayChanged) {
@@ -112,6 +144,16 @@ final class AppModel {
             (try JobListItem.open(order: .today, db), try Pipeline.log(db))
         }) { model, value in
             (model.today, model.todayLog) = value
+        })
+        observations.append(watch(reader, { db in
+            (try ProgressStats.fetch(db), try JobListItem.applied(db))
+        }) { model, value in
+            (model.stats, model.appliedJobs) = value
+        })
+        observations.append(watch(reader, { db in
+            (try Settings.tailoringModel(db), try Settings.webAccess(db), try Settings.morningHour(db))
+        }) { model, value in
+            (model.tailoringModel, model.webAccess, model.morningHour) = value
         })
     }
 
@@ -333,9 +375,139 @@ final class AppModel {
         try? database?.writer.write { try Pipeline.restore(item.id, $0) }
     }
 
+    /// Today's list was picked for an older version of your profile.
+    var picksAreOutOfDate: Bool {
+        today.contains { $0.job.status.isWaiting && $0.score?.profileVersion != profile.version }
+    }
+
     /// Everything scoring needs is in place.
     var isReadyToScore: Bool {
         !sources.isEmpty && profile.isScoreable && (scoring.provider == .ollama || hasOpenAIKey)
+    }
+
+    // MARK: Preparing applications
+
+    func application(for item: JobListItem) -> JobApplication? {
+        try? database?.reader.read { try JobApplication.filter(Column("jobId") == item.id).fetchOne($0) }
+    }
+
+    /// Writes the tailored resume and answers for one job, with the better, costlier model.
+    func prepare(_ item: JobListItem) async {
+        guard let database, !preparing.contains(item.id) else { return }
+        preparing.insert(item.id)
+        prepareMessage = nil
+        defer { preparing.remove(item.id) }
+        do {
+            let key = OpenAIKey.load()
+            if key == nil && OpenAIKey.exists { throw ModelError.lockedKey }
+            guard let key else { throw ModelError.missingKey }
+            let client = OpenAIClient(model: tailoringModel, apiKey: key, http: http)
+            let output = try await Tailor(database: database, client: client).run(jobId: item.id)
+            if let dollars = Pricing.dollars(model: client.name, usage: output.usage) {
+                prepareMessage = String(format: "Ready · about $%.2f", dollars)
+            } else {
+                prepareMessage = "Ready"
+            }
+        } catch {
+            prepareMessage = error.localizedDescription
+        }
+    }
+
+    func setTailoringModel(_ name: String) {
+        try? database?.writer.write { try Settings.setTailoringModel(name, $0) }
+    }
+
+    func setStage(_ status: JobStatus, for item: JobListItem) {
+        try? database?.writer.write { try Pipeline.setStage(status, of: item.id, $0) }
+    }
+
+    // MARK: Connect
+
+    private func startServer() async {
+        guard let database else { return }
+        do {
+            serverToken = try await database.writer.write { try Settings.serverToken($0) }
+            let api = AppAPI(database: database, token: serverToken)
+            server = LocalServer { await api.handle($0) }
+            await updateServerAddresses()
+        } catch {
+            connectMessage = error.localizedDescription
+        }
+    }
+
+    /// Always on this Mac, for the extension. On your tailnet only when you've turned web access on.
+    private func updateServerAddresses() async {
+        guard let server else { return }
+        let address = LocalServer.tailscaleAddress()
+        webAddress = webAccess ? address : nil
+        let hosts = ["127.0.0.1"] + (webAddress.map { [$0] } ?? [])
+        let failed = await server.listen(on: hosts, port: AppAPI.port)
+        connectMessage = failed.isEmpty ? nil : "Couldn't open port \(AppAPI.port) on \(failed.joined(separator: ", "))."
+    }
+
+    func setWebAccess(_ enabled: Bool) async {
+        guard let database else { return }
+        webAccess = enabled
+        try? await database.writer.write { try Settings.setWebAccess(enabled, $0) }
+        await updateServerAddresses()
+        if enabled && webAddress == nil { connectMessage = "Tailscale isn't running on this Mac." }
+    }
+
+    /// Makes a new token. The extension and any signed-in browser will need the new one.
+    func resetServerToken() async {
+        guard let database else { return }
+        do {
+            serverToken = try await database.writer.write { db in
+                let token = AppAPI.newToken()
+                try Settings.setServerToken(token, db)
+                return token
+            }
+            let api = AppAPI(database: database, token: serverToken)
+            await server?.setHandler { await api.handle($0) }
+        } catch {
+            connectMessage = error.localizedDescription
+        }
+    }
+
+    func setMorningHour(_ hour: Int?) {
+        try? database?.writer.write { try Settings.setMorningHour(hour, $0) }
+    }
+
+    func setLaunchesAtLogin(_ enabled: Bool) {
+        do {
+            if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
+        } catch {
+            connectMessage = "Couldn't change that: \(error.localizedDescription)"
+        }
+        launchesAtLogin = SMAppService.mainApp.status == .enabled
+    }
+
+    /// Fetches jobs, scores them and fills today's list, then says so.
+    private func runMorningRefreshIfDue() async {
+        guard let database else { return }
+        let (hour, lastRun) = (try? await database.reader.read {
+            (try Settings.morningHour($0), try Settings.lastMorningRun($0))
+        }) ?? (nil, nil)
+        guard MorningSchedule.isDue(at: .now, hour: hour, lastRun: lastRun) else { return }
+        try? await database.writer.write { try Settings.setLastMorningRun(Day.today, $0) }
+
+        await refreshAll()
+        let pending = (try? await database.reader.read { try JobScorer.pendingCount($0) }) ?? 0
+        if isReadyToScore && pending > 0 {
+            scoreJobs()
+            await scoringTask?.value
+        }
+        await fillToday()
+
+        let picks = (try? await database.reader.read { db in
+            try JobListItem.open(order: .today, db).filter(\.job.status.isWaiting).count
+        }) ?? 0
+        guard picks > 0 else { return }
+        _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
+        let content = UNMutableNotificationContent()
+        content.title = "Your picks are ready"
+        content.body = "\(picks) job\(picks == 1 ? "" : "s") to look at today."
+        try? await UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "morning", content: content, trigger: nil))
     }
 
     // MARK: Profile
@@ -366,7 +538,10 @@ final class AppModel {
     }
 
     private func makeClient() throws -> any ModelClient {
-        try scoring.makeClient(apiKey: scoring.provider == .openAI ? OpenAIKey.load() : nil, http: http)
+        guard scoring.provider == .openAI else { return try scoring.makeClient(apiKey: nil, http: http) }
+        let key = OpenAIKey.load()
+        if key == nil && OpenAIKey.exists { throw ModelError.lockedKey }
+        return try scoring.makeClient(apiKey: key, http: http)
     }
 
     /// Reads a resume file into your profile. You review it on the Profile screen.

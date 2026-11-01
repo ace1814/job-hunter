@@ -1,0 +1,16 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>
+  body { width: 260px; margin: 0; padding: 14px; font: 13px/1.4 -apple-system, system-ui, sans-serif; }
+  h1 { font-size: 14px; margin: 0 0 6px; }
+  p { margin: 0 0 10px; color: #555; }
+  input { width: 100%; box-sizing: border-box; padding: 7px; margin-bottom: 8px; border: 1px solid #bbb; border-radius: 6px; }
+  button { width: 100%; padding: 8px; border: 0; border-radius: 8px; font-weight: 600; background: #0a66ff; color: #fff; cursor: pointer; }
+  #status { margin-top: 8px; color: #555; min-height: 18px; }
+</style>
+<h1>Shortlist Assist</h1>
+<p>Copy your token from the Connect screen in Shortlist and paste it here.</p>
+<input id="token" type="password" placeholder="Paste your token" autocomplete="off">
+<button id="save">Save and Check</button>
+<div id="status"></div>
+<script src="popup.js"></script>

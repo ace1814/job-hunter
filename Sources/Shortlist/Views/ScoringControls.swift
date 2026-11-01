@@ -33,13 +33,18 @@ struct ScoreBar: View {
 
     private var waiting: some View {
         HStack {
-            Label("\(model.pendingScores) job\(model.pendingScores == 1 ? "" : "s") waiting for a score", systemImage: "sparkles")
+            Label(waitingText, systemImage: model.picksAreOutOfDate ? "exclamationmark.arrow.circlepath" : "sparkles")
                 .fontWeight(.medium)
             Spacer()
-            Button("Score Jobs") { model.scoreJobs() }
+            Button(model.picksAreOutOfDate ? "Rescore Jobs" : "Score Jobs") { model.scoreJobs() }
                 .buttonStyle(.borderedProminent)
                 .help("Score up to \(JobScorer.defaultLimit) jobs with \(model.scoring.modelName)")
         }
+    }
+
+    private var waitingText: String {
+        if model.picksAreOutOfDate { return "Your profile changed, so these picks are out of date" }
+        return "\(model.pendingScores) job\(model.pendingScores == 1 ? "" : "s") waiting for a score"
     }
 
     private func running(_ progress: (done: Int, total: Int)) -> some View {

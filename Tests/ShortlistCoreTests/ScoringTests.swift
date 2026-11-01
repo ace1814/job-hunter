@@ -77,6 +77,12 @@ final class ScoringTests: XCTestCase {
         XCTAssertTrue(request.user.hasPrefix("<job>") && request.user.hasSuffix("</job>"))
     }
 
+    func test_promptSaysWhereYouLiveAndHowRemoteLimitsWork() {
+        let system = ScoringPrompt.system(profile: Profile(targetRoles: ["Designer"], basedIn: "India"))
+        XCTAssertTrue(system.contains("Lives in: India"))
+        XCTAssertTrue(system.contains("A remote job that names a country or region as its location is limited to it"))
+    }
+
     func test_longDescriptionsAreCut() {
         let job = Job(companyName: "Co", title: "T", url: "u", descriptionText: String(repeating: "x", count: 20_000))
         XCTAssertLessThan(ScoringPrompt.user(job: job).count, 6_200)
@@ -200,6 +206,56 @@ final class ScoringTests: XCTestCase {
 
         let ids = try database.reader.read { try JobListItem.open(order: .today, day: "2026-10-31", $0) }.map(\.id)
         XCTAssertEqual(ids, [first, better], "the better job joins at the end instead of reshuffling the day")
+    }
+
+    func test_aProfileEditReplacesPicksOnceTheyreScoredAgain() throws {
+        let oldPick = try addJob("Old pick")
+        try score(oldPick, 90)
+        let stillGood = try addJob("Still good")
+        try score(stillGood, 80)
+        let newBest = try addJob("New best")
+        try score(newBest, 40)
+        try database.writer.write { try DailyQueue.fill(day: "2026-10-31", $0) }
+
+        try database.writer.write { db in
+            var profile = try Profile.current(db)
+            profile.basedIn = "India"
+            try Profile.save(profile, db)
+        }
+        // Not scored again yet: the day's list stays as it was.
+        try database.writer.write { try DailyQueue.fill(day: "2026-10-31", $0) }
+        var ids = try database.reader.read { try JobListItem.open(order: .today, day: "2026-10-31", $0) }.map(\.id)
+        XCTAssertEqual(ids, [oldPick, stillGood])
+
+        try score(oldPick, 30)
+        try score(stillGood, 80)
+        try score(newBest, 95)
+        try database.writer.write { db in
+            // score() marks jobs 'scored', so put the picks back as the queue left them.
+            try db.execute(sql: "UPDATE job SET status = 'queued' WHERE id IN (?, ?)", arguments: [oldPick, stillGood])
+            try DailyQueue.fill(day: "2026-10-31", db)
+        }
+        ids = try database.reader.read { try JobListItem.open(order: .today, day: "2026-10-31", $0) }.map(\.id)
+        XCTAssertEqual(ids, [newBest, stillGood], "the job that lost its place is gone and the order is fresh")
+        let dropped = try database.reader.read { try Job.fetchOne($0, key: oldPick)?.status }
+        XCTAssertEqual(dropped, .scored)
+    }
+
+    func test_picksYouActedOnSurviveAProfileEdit() throws {
+        let applied = try addJob("Applied")
+        try score(applied, 90)
+        try database.writer.write { db in
+            try DailyQueue.fill(day: "2026-10-31", db)
+            try Pipeline.markApplied(applied, day: "2026-10-31", db)
+            var profile = try Profile.current(db)
+            profile.headline = "New"
+            try Profile.save(profile, db)
+            let version = try Profile.current(db).version
+            try db.execute(sql: "UPDATE jobScore SET profileVersion = ?", arguments: [version])
+            try DailyQueue.fill(day: "2026-10-31", db)
+        }
+        let ids = try database.reader.read { try JobListItem.open(order: .today, day: "2026-10-31", $0) }.map(\.id)
+        XCTAssertEqual(ids, [applied])
     }
 
     // MARK: Model check

@@ -1,0 +1,33 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Form check</title>
+<!-- A stand-in for the real forms, using the field names they use: Greenhouse first, then Lever. -->
+<form id="greenhouse" onsubmit="window.submitted = true; return false">
+  <label for="first_name">First Name*</label><input id="first_name" type="text" aria-required="true">
+  <label for="last_name">Last Name*</label><input id="last_name" type="text" aria-required="true">
+  <label for="email">Email*</label><input id="email" type="text" aria-required="true">
+  <label for="phone">Phone</label><input id="phone" type="tel">
+  <label for="resume">Resume/CV*</label><input id="resume" type="file">
+  <label for="cover_letter">Cover Letter</label><input id="cover_letter" type="file">
+  <label for="question_1">LinkedIn Profile</label><input id="question_1" type="text">
+  <label for="question_2">Other Website</label><input id="question_2" type="text">
+  <label for="question_3">Why do you want to join Figma?</label><textarea id="question_3" required></textarea>
+  <label for="question_4">From where do you intend to work?</label><input id="question_4" type="text">
+  <label for="question_5">Do you now or in the future require visa sponsorship?*</label><input id="question_5" type="text" aria-required="true">
+  <label for="question_6">Expected salary*</label><input id="question_6" type="text" required>
+  <label for="question_7">Preferred First Name</label><input id="question_7" type="text">
+  <label for="question_8">What was your favorite project?*</label><textarea id="question_8" required></textarea>
+  <input id="already" type="text" aria-label="City" value="Mumbai">
+  <input type="hidden" name="h-captcha-response">
+  <button type="submit">Submit Application</button>
+</form>
+<form id="lever" onsubmit="window.submitted = true; return false">
+  <label>Full name<input name="name" type="text"></label>
+  <label>Email<input name="email" type="email"></label>
+  <label>Phone<input name="phone" type="tel"></label>
+  <label>Current company<input name="org" type="text"></label>
+  <label>LinkedIn URL<input name="urls[LinkedIn]" type="text"></label>
+  <label>Portfolio URL<input name="urls[Portfolio]" type="text"></label>
+  <label>Resume/CV<input name="resume" type="file"></label>
+</form>
+<script src="../fill.js"></script>

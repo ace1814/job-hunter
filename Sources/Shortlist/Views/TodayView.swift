@@ -45,7 +45,7 @@ struct TodayView: View {
     private var dashboard: some View {
         HSplitView {
             VStack(spacing: 0) {
-                DayProgress(log: model.todayLog)
+                DayProgress(log: model.todayLog, streak: model.stats.currentStreak)
                 Divider()
                 ScoreBar()
                 list
@@ -102,6 +102,7 @@ struct TodayView: View {
 /// Your count toward the day's target, one pip per application.
 private struct DayProgress: View {
     let log: DailyLog
+    let streak: Int
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -109,6 +110,9 @@ private struct DayProgress: View {
                 Text("\(log.submittedCount)").font(.system(size: 30, weight: .semibold).monospacedDigit())
                 Text("of \(log.target) applications").foregroundStyle(.secondary)
                 Spacer()
+                if streak > 0 {
+                    Label("\(streak) day streak", systemImage: "flame.fill").foregroundStyle(.orange)
+                }
                 if log.submittedCount >= log.target {
                     Label("Done for today", systemImage: "checkmark.seal.fill").foregroundStyle(.green)
                 }

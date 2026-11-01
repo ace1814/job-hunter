@@ -18,6 +18,8 @@ public struct JobListItem: Equatable, Sendable, Identifiable, FetchableRecord {
     public var referralCount: Int
     public var score: JobScore?
     public var label: JobLabelValue?
+    /// A tailored resume and answers are ready.
+    public var isPrepared: Bool
 
     public var id: Int64 { job.id ?? 0 }
 
@@ -29,6 +31,22 @@ public struct JobListItem: Equatable, Sendable, Identifiable, FetchableRecord {
         let scoreValue: Int? = row["score"]
         score = scoreValue == nil ? nil : try JobScore(row: row)
         label = row["labelValue"]
+        isPrepared = row["isPrepared"]
+    }
+
+    /// Jobs you've applied to, latest first, whatever became of them.
+    public static func applied(_ db: Database) throws -> [JobListItem] {
+        try JobListItem.fetchAll(db, sql: """
+            SELECT job.*, jobScore.*, source.kind AS sourceKind, source.name AS sourceName,
+                   jobLabel.label AS labelValue, 1 AS isPrepared,
+                   (SELECT COUNT(*) FROM jobReferral WHERE jobReferral.jobId = job.id) AS referralCount
+            FROM job
+            LEFT JOIN source ON source.id = job.sourceId
+            LEFT JOIN jobScore ON jobScore.jobId = job.id
+            LEFT JOIN jobLabel ON jobLabel.jobId = job.id
+            WHERE job.status IN ('applied', 'interviewing', 'rejected', 'offer')
+            ORDER BY job.statusChangedAt DESC
+            """)
     }
 
     /// Open jobs, optionally narrowed by a keyword search over title, company and text.
@@ -37,6 +55,8 @@ public struct JobListItem: Equatable, Sendable, Identifiable, FetchableRecord {
         var sql = """
             SELECT job.*, jobScore.*, source.kind AS sourceKind, source.name AS sourceName,
                    jobLabel.label AS labelValue,
+                   EXISTS (SELECT 1 FROM application WHERE application.jobId = job.id
+                           AND application.resumePDFPath IS NOT NULL) AS isPrepared,
                    (SELECT COUNT(*) FROM jobReferral WHERE jobReferral.jobId = job.id) AS referralCount
             FROM job
             LEFT JOIN source ON source.id = job.sourceId

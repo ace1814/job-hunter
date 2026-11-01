@@ -8,11 +8,13 @@ public struct DailyQueueEntry: Codable, Equatable, Sendable, FetchableRecord, Pe
     public var day: String
     public var jobId: Int64
     public var rank: Int
+    public var profileVersion: Int
 
-    public init(day: String, jobId: Int64, rank: Int) {
+    public init(day: String, jobId: Int64, rank: Int, profileVersion: Int = 0) {
         self.day = day
         self.jobId = jobId
         self.rank = rank
+        self.profileVersion = profileVersion
     }
 
     public static let job = belongsTo(Job.self)

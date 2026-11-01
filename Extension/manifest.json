@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Shortlist Assist",
+  "version": "0.1.0",
+  "description": "Fills job application forms from your Shortlist app. You review them and press Submit yourself.",
+  "permissions": ["storage"],
+  "host_permissions": ["http://127.0.0.1:8787/*"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_popup": "popup.html", "default_title": "Shortlist Assist" },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://boards.greenhouse.io/*",
+        "https://job-boards.greenhouse.io/*",
+        "https://job-boards.eu.greenhouse.io/*",
+        "https://jobs.lever.co/*",
+        "https://jobs.eu.lever.co/*",
+        "https://jobs.ashbyhq.com/*",
+        "https://jobs.smartrecruiters.com/*"
+      ],
+      "js": ["fill.js", "content.js"],
+      "all_frames": true,
+      "run_at": "document_idle"
+    }
+  ]
+}

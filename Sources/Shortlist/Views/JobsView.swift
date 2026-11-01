@@ -1,3 +1,4 @@
+import AppKit
 import ShortlistCore
 import SwiftUI
 
@@ -166,6 +167,9 @@ struct JobDetail: View {
                 }
 
                 actions(for: item)
+                if job.status.isWaiting || item.isPrepared {
+                    ApplicationPanel(item: item)
+                }
                 LabelPicker(item: item)
 
                 Divider()
@@ -210,6 +214,56 @@ struct JobDetail: View {
             Text(label).foregroundStyle(.secondary)
             Text(value).textSelection(.enabled)
         }
+    }
+}
+
+/// The tailored resume and answers for one job: making them, and getting at them.
+private struct ApplicationPanel: View {
+    @Environment(AppModel.self) private var model
+    let item: JobListItem
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if model.preparing.contains(item.id) {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("Writing your resume and answers…").font(.callout)
+                }
+            } else if item.isPrepared, let application = model.application(for: item) {
+                HStack {
+                    Label("Application ready", systemImage: "doc.text.fill").fontWeight(.medium)
+                    Spacer()
+                    if let path = application.resumePDFPath {
+                        Button("Open Resume") { NSWorkspace.shared.open(URL(fileURLWithPath: path)) }
+                    }
+                    Button("Redo") { Task { await model.prepare(item) } }
+                        .help("Write them again with \(model.tailoringModel)")
+                }
+                ForEach(application.blurbs, id: \.question) { blurb in
+                    DisclosureGroup(blurb.question) {
+                        Text(blurb.answer).textSelection(.enabled).padding(.vertical, 4)
+                        Button("Copy") {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(blurb.answer, forType: .string)
+                        }
+                    }
+                    .font(.callout)
+                }
+            } else {
+                HStack {
+                    Text("Make a resume and answers for this job.").font(.callout).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Prepare Application") { Task { await model.prepare(item) } }
+                        .help("Uses \(model.tailoringModel), about 2 cents a job or more")
+                }
+            }
+            if let message = model.prepareMessage, !model.preparing.contains(item.id) {
+                Text(message).font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 8))
     }
 }
 

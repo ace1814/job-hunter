@@ -106,6 +106,26 @@ final class ServerTests: XCTestCase {
         XCTAssertEqual(notReady.status, 409)
     }
 
+    func test_aFormWithAnUnknownAddressIsTakenToBeTheJobYouJustOpened() async throws {
+        try await prepare()
+        let id = jobId!
+        let form = ["url": "https://ats.rippling.com/acme/jobs/9"]
+        let before = await call("/api/packet", query: form)
+        XCTAssertEqual(before.status, 404)
+
+        try await database.writer.write { try Settings.setLastOpenedJob(id, $0) }
+        let opened = await call("/api/packet", query: form)
+        XCTAssertEqual(opened.status, 200)
+        XCTAssertEqual((try JSONSerialization.jsonObject(with: opened.body) as? [String: Any])?["isGuess"] as? Bool, true)
+
+        let known = await call("/api/packet", query: ["url": "https://job-boards.greenhouse.io/figma/jobs/123"])
+        XCTAssertEqual((try JSONSerialization.jsonObject(with: known.body) as? [String: Any])?["isGuess"] as? Bool, false)
+
+        try await database.writer.write { try Settings.setLastOpenedJob(id, at: .now - 2 * 3600, $0) }
+        let stale = await call("/api/packet", query: form)
+        XCTAssertEqual(stale.status, 404)
+    }
+
     func test_packetCarriesEverythingForTheForm() async throws {
         try await prepare()
         let response = await call("/api/packet", query: ["url": "https://job-boards.greenhouse.io/figma/jobs/123"])

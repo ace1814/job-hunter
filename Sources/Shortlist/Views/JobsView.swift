@@ -147,24 +147,7 @@ struct JobDetail: View {
                     ScoreSummary(score: score)
                 }
 
-                if !referrals.isEmpty {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Label("You know people here", systemImage: "person.2.fill").font(.headline).foregroundStyle(.green)
-                        ForEach(referrals, id: \.connection.id) { flag in
-                            HStack(spacing: 6) {
-                                Text(flag.connection.fullName).fontWeight(.medium)
-                                Text(flag.connection.position).foregroundStyle(.secondary).lineLimit(1)
-                                if flag.jobReferral.confidence == .possible {
-                                    Tag(text: "maybe: \(flag.connection.company)")
-                                }
-                            }
-                            .font(.callout)
-                        }
-                    }
-                    .padding(10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.green.opacity(0.08), in: .rect(cornerRadius: 8))
-                }
+                ContactsPanel(contacts: JobContacts(job: job, referrals: referrals))
 
                 actions(for: item)
                 if job.status.isWaiting || item.isPrepared {
@@ -186,6 +169,7 @@ struct JobDetail: View {
     private func actions(for item: JobListItem) -> some View {
         HStack(spacing: 8) {
             Button {
+                model.noteOpened(item)
                 if let url = URL(string: item.job.applyURL ?? item.job.url) { openURL(url) }
             } label: {
                 Label("Apply", systemImage: "arrow.up.right.square")
@@ -268,6 +252,45 @@ private struct ApplicationPanel: View {
 }
 
 /// What the model made of the job.
+/// Who to reach at the company: the people you know, most useful first, then LinkedIn searches
+/// for the ones you don't. The names come from your own connections or from LinkedIn, never a model.
+private struct ContactsPanel: View {
+    @Environment(\.openURL) private var openURL
+    let contacts: JobContacts
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if contacts.people.isEmpty {
+                Label("People to contact", systemImage: "person.2").font(.headline)
+            } else {
+                Label("You know people here", systemImage: "person.2.fill").font(.headline).foregroundStyle(.green)
+                ForEach(contacts.people, id: \.connection.id) { person in
+                    HStack(spacing: 6) {
+                        Text(person.connection.fullName).fontWeight(.medium)
+                        Text(person.connection.position).foregroundStyle(.secondary).lineLimit(1)
+                        if let label = person.role.label(in: contacts.field) { Tag(text: label) }
+                        if person.isPossible { Tag(text: "maybe: \(person.connection.company)") }
+                        Spacer(minLength: 0)
+                        if let link = person.connection.profileURL, let url = URL(string: link) {
+                            Button("LinkedIn") { openURL(url) }.buttonStyle(.link)
+                        }
+                    }
+                    .font(.callout)
+                }
+            }
+            HStack(spacing: 8) {
+                Text("Find on LinkedIn").font(.callout).foregroundStyle(.secondary)
+                ForEach(contacts.searches, id: \.title) { search in
+                    Button(search.title) { openURL(search.url) }.controlSize(.small)
+                }
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.green.opacity(contacts.people.isEmpty ? 0.03 : 0.08), in: .rect(cornerRadius: 8))
+    }
+}
+
 private struct ScoreSummary: View {
     let score: JobScore
 

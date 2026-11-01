@@ -42,9 +42,16 @@ from your master resume by the app. A reworded bullet that adds a number goes ba
 words, and skills you don't have are dropped. Materials and the PDF stay in
 `~/Library/Application Support/Shortlist/Applications`.
 
-Apply opens the posting in your browser. On Greenhouse, Lever, Ashby and SmartRecruiters pages the
-extension offers to fill the form from those materials. It never clicks Submit, and it leaves pay,
-visa and personal background questions for you. Press I Submitted It to count the application.
+Apply opens the posting in your browser. On Greenhouse, Lever, Ashby and SmartRecruiters forms the
+extension offers to fill them from those materials. Many jobs come through a board like Himalayas
+that sends you on to the real form. Shortlist remembers the job you pressed Apply on for an hour and
+asks you to confirm the form is for it. On any other site, click the extension's icon and press Fill
+This Page. It never clicks Submit, and it leaves pay, visa and personal background questions for
+you. Press I Submitted It to count the application.
+
+Each job also shows who to contact: the people you know there, with design leaders, founders and
+recruiters first, and LinkedIn searches for the ones you don't know. Names only ever come from your
+connections or from LinkedIn.
 
 To install it, load the `Extension` folder as an unpacked extension, then paste the token from the
 Connect screen. The extension talks only to the app on `127.0.0.1:8787`.
@@ -70,7 +77,9 @@ days. Companies with their own careers sites, like Google or Microsoft, have no 
 The model answers small questions on a 0–4 scale (role, experience, level, location, must-haves)
 and the app works out the 0–100 score in `Rubric`, so scores mean the same across models. A wrong
 role or place caps a job at 40, and a dealbreaker caps it at 20. A remote job must be open to
-someone living where your profile says you live. Today's list takes the top 15 at 50 or above, and
+someone living where your profile says you live. `Eligibility` checks that with plain rules before
+any model is paid to read the job: the location must name that place or a region that includes it,
+or name no place at all with nothing in the posting limiting it. Today's list takes the top 15 at 50 or above, and
 stays in place once picked, unless you change your profile and score the jobs again.
 
 What leaves this Mac when you use OpenAI: each job, your profile and your resume text, sent with

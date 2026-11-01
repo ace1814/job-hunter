@@ -1,6 +1,10 @@
 // Shows a small panel on application pages. Everything happens only when you press its buttons,
 // and the page's own text only ever goes in as plain text.
 (() => {
+  // The popup's Fill This Page can inject this script into a page that already has it.
+  if (globalThis.shortlistPanel) return;
+  globalThis.shortlistPanel = true;
+
   let host = null;
   let lastURL = "";
 
@@ -63,8 +67,9 @@
   }
 
   function offerFill(packet) {
-    show("Shortlist", `${packet.title} at ${packet.company}`, [
-      { label: "Fill Application", action: () => runFill(packet) },
+    const job = `${packet.title} at ${packet.company}`;
+    show("Shortlist", packet.isGuess ? `Is this the form for ${job}?` : job, [
+      { label: packet.isGuess ? "Yes, Fill It" : "Fill Application", action: () => runFill(packet) },
       { label: "Hide", action: close, quiet: true },
     ]);
   }
@@ -97,8 +102,13 @@
     });
   }
 
+  // Listings and ad frames have no form to fill. The form can also appear after the page loads.
+  function hasForm() {
+    return document.querySelectorAll("input:not([type=hidden]), textarea").length >= 3;
+  }
+
   function check() {
-    if (location.href === lastURL) return;
+    if (location.href === lastURL || !hasForm()) return;
     lastURL = location.href;
     close();
     const url = window !== window.top && document.referrer.includes("gh_jid") ? document.referrer : location.href;

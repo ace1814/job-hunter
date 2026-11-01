@@ -243,6 +243,16 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v6") { db in
+            // Search for jobs open in India rather than fetching the US ones and rejecting them.
+            try db.execute(sql: """
+                UPDATE source SET boardID = boardID || '|India', name = name || ' in India', lastFetchedAt = NULL
+                WHERE kind = 'himalayas' AND boardID NOT LIKE '%|%'
+                """)
+            // Those searches should run the next time the app opens, not tomorrow.
+            try db.execute(sql: "DELETE FROM setting WHERE key = 'lastMorningRun'")
+        }
+
         return migrator
     }
 }

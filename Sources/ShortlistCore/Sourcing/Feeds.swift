@@ -13,7 +13,9 @@ public enum Feeds {
         case .lever: return try await lever(try requireBoard(), eu: source.url?.contains("eu.lever.co") ?? false, http, filter, fallbackCompany: source.name)
         case .ashby: return try await ashby(try requireBoard(), http, filter, fallbackCompany: source.name)
         case .smartRecruiters: return try await smartRecruiters(try requireBoard(), http, filter)
-        case .himalayas: return try await himalayas(query: board.isEmpty ? "product designer" : board, http, filter)
+        case .himalayas:
+            let parts = board.split(separator: "|", maxSplits: 1).map(String.init)
+            return try await himalayas(query: parts.first ?? "product designer", country: parts.dropFirst().first, http, filter)
         case .remotive: return try await remotive(http, filter)
         case .remoteOK: return try await remoteOK(http, filter)
         case .hackerNewsHiring: return try await hackerNews(http, filter)
@@ -224,14 +226,19 @@ public enum Feeds {
         var jobs: [Job]
     }
 
-    /// Himalayas search, 20 a page. `query` is what you'd type in its search box.
-    static func himalayas(query: String, _ http: any HTTPClient, _ filter: TitleFilter, pages: Int = 5) async throws -> FeedResult {
+    /// Himalayas search, 20 a page. `query` is what you'd type in its search box. With `country` it
+    /// returns jobs open there, worldwide ones included, and that country leads the location so a
+    /// long list doesn't cut it off.
+    static func himalayas(query: String, country: String? = nil, _ http: any HTTPClient, _ filter: TitleFilter, pages: Int = 5) async throws -> FeedResult {
         var all: [FetchedJob] = []
         for page in 1...pages {
-            let url = try URL.api("https://himalayas.app/jobs/api/search", query: ["q": query, "page": String(page)])
+            var parameters = ["q": query, "page": String(page)]
+            parameters["country"] = country
+            let url = try URL.api("https://himalayas.app/jobs/api/search", query: parameters)
             let response = try await http.json(HimalayasPage.self, from: url)
             all += response.jobs.map { job in
-                let places = job.locationRestrictions ?? []
+                let listed = job.locationRestrictions ?? []
+                let places = listed.filter { $0 == country } + listed.filter { $0 != country }
                 return FetchedJob(
                     externalID: job.guid, companyName: job.companyName, title: job.title,
                     location: places.isEmpty ? "Anywhere" : places.prefix(6).joined(separator: ", ") + (places.count > 6 ? " +\(places.count - 6) more" : ""),

@@ -48,8 +48,9 @@ public struct JobScorer: Sendable {
     /// Scores up to `limit` jobs, saving each as it finishes, so stopping loses nothing.
     public func run(limit: Int = JobScorer.defaultLimit,
                     progress: @escaping @Sendable (_ done: Int, _ total: Int) -> Void = { _, _ in }) async throws -> Report {
-        let (profile, jobs) = try await database.reader.read { db in
-            (try Profile.current(db), try Self.pending(limit: limit, db))
+        let (profile, jobs) = try await database.writer.write { db in
+            try Eligibility.apply(db)
+            return (try Profile.current(db), try Self.pending(limit: limit, db))
         }
         guard profile.isScoreable else { throw ModelError.emptyProfile }
 

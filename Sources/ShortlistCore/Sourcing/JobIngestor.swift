@@ -61,6 +61,7 @@ public struct JobIngestor: Sendable {
             }
             return results.sorted { $0.0 < $1.0 }.map(\.1)
         }
+        try await database.writer.write { try Eligibility.apply($0) }
         return Report(sources: reports)
     }
 
@@ -127,6 +128,7 @@ public struct JobIngestor: Sendable {
             }
             let changed = try job.updateChanges(db) {
                 $0.url = fetched.url
+                if !fetched.location.isEmpty { $0.location = fetched.location }
                 $0.applyURL = fetched.applyURL
                 $0.descriptionText = fetched.descriptionText
                 $0.salaryText = fetched.salaryText

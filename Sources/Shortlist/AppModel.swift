@@ -341,6 +341,12 @@ final class AppModel {
 
     // MARK: Jobs
 
+    /// Remembers the job, so the extension can fill a form the job board sends you on to.
+    func noteOpened(_ item: JobListItem) {
+        guard let id = item.job.id else { return }
+        try? database?.writer.write { try Settings.setLastOpenedJob(id, $0) }
+    }
+
     func referrals(for job: Job) -> [ReferralFlag] {
         guard let id = job.id else { return [] }
         return (try? database?.reader.read { try ReferralFlag.forJob(id, $0) }) ?? []

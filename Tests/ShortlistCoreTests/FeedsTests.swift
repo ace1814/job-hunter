@@ -87,6 +87,15 @@ final class FeedsTests: XCTestCase {
         XCTAssertEqual(http.requests.count, 1)
     }
 
+    func test_himalayasAsksForTheCountryAndPutsItFirst() async throws {
+        let http = StubHTTP()
+        try http.serve("https://himalayas.app/jobs/api/search?country=Canada&page=1&q=product%20designer", fixture: "himalayas.json")
+        let result = try await Feeds.fetch(Source(kind: .himalayas, name: "Himalayas", boardID: "product designer|Canada"),
+                                           http: http, filter: TitleFilter(keywords: ["product design", "ux"]))
+        XCTAssertFalse(result.jobs.isEmpty)
+        XCTAssertEqual(http.requests.count, 1)
+    }
+
     func test_remotive() async throws {
         let http = StubHTTP()
         try http.serve("https://remotive.com/api/remote-jobs", fixture: "remotive.json")

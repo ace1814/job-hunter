@@ -70,12 +70,13 @@ public struct AppAPI: Sendable {
     }
 
     private func packet(for url: String) async throws -> HTTPResponse {
-        let found = try await database.reader.read { db -> (Job, JobApplication?, Profile)? in
-            guard let job = try PostingMatcher.job(for: url, db) else { return nil }
+        let found = try await database.reader.read { db -> (Job, Bool, JobApplication?, Profile)? in
+            let matched = try PostingMatcher.job(for: url, db)
+            guard let job = try matched ?? PostingMatcher.lastOpened(db) else { return nil }
             let application = try JobApplication.filter(Column("jobId") == job.id).fetchOne(db)
-            return (job, application, try Profile.current(db))
+            return (job, matched == nil, application, try Profile.current(db))
         }
-        guard let (job, application, profile) = found else {
+        guard let (job, isGuess, application, profile) = found else {
             return Self.error(404, "This posting isn't in Shortlist.")
         }
         guard let application, let path = application.resumePDFPath,
@@ -83,7 +84,7 @@ public struct AppAPI: Sendable {
             return Self.error(409, "Prepare this application in Shortlist first.")
         }
         return try Self.json(ApplyPacket(
-            job: job, master: application.resume ?? profile.masterResume, profile: profile, blurbs: application.blurbs,
+            job: job, isGuess: isGuess, master: application.resume ?? profile.masterResume, profile: profile, blurbs: application.blurbs,
             resumeName: URL(fileURLWithPath: path).lastPathComponent, resumeBase64: resume.base64EncodedString()))
     }
 
@@ -104,9 +105,16 @@ public struct AppAPI: Sendable {
     }
 }
 
+struct LastOpenedJob: Codable {
+    var jobId: Int64
+    var openedAt: Date
+}
+
 /// Everything the extension needs to fill one application form.
 struct ApplyPacket: Encodable {
     var jobId: Int64
+    /// True when the page's address didn't identify the job, so you're asked to confirm it.
+    var isGuess: Bool
     var title: String
     var company: String
     var firstName: String
@@ -122,8 +130,9 @@ struct ApplyPacket: Encodable {
     var resumeName: String
     var resumeBase64: String
 
-    init(job: Job, master: MasterResume, profile: Profile, blurbs: [JobApplication.Blurb], resumeName: String, resumeBase64: String) {
+    init(job: Job, isGuess: Bool, master: MasterResume, profile: Profile, blurbs: [JobApplication.Blurb], resumeName: String, resumeBase64: String) {
         jobId = job.id ?? 0
+        self.isGuess = isGuess
         title = job.title
         company = job.companyName
         let names = master.name.split(separator: " ").map(String.init)
@@ -157,6 +166,17 @@ public enum PostingMatcher {
         var parts = url.path.split(separator: "/").map(String.init)
         if let last = parts.last?.lowercased(), ["apply", "application"].contains(last) { parts.removeLast() }
         return ([host.replacingOccurrences(of: "www.", with: "")] + parts).joined(separator: "/").lowercased()
+    }
+
+    /// How long after you press Apply a form you land on is taken to be for that job.
+    static let lastOpenedWindow: TimeInterval = 3600
+
+    /// The job you just pressed Apply on, if you're still waiting to apply to it.
+    static func lastOpened(now: Date = .now, _ db: Database) throws -> Job? {
+        guard let opened = try Settings.lastOpenedJob(db),
+              now.timeIntervalSince(opened.openedAt) < lastOpenedWindow,
+              let job = try Job.fetchOne(db, key: opened.jobId), job.status.isWaiting else { return nil }
+        return job
     }
 
     static func job(for url: String, _ db: Database) throws -> Job? {
@@ -246,6 +266,16 @@ extension Settings {
 
     public static func setMorningHour(_ hour: Int?, _ db: Database) throws {
         try setValue(hour ?? -1, for: "morningHour", db)
+    }
+
+    /// The job you last pressed Apply on. Job boards send you on to a form whose address Shortlist
+    /// has never seen, so this is how the extension knows which job that form is for.
+    public static func setLastOpenedJob(_ id: Int64, at time: Date = .now, _ db: Database) throws {
+        try setValue(LastOpenedJob(jobId: id, openedAt: time), for: "lastOpenedJob", db)
+    }
+
+    static func lastOpenedJob(_ db: Database) throws -> LastOpenedJob? {
+        try value(for: "lastOpenedJob", db)
     }
 
     public static func lastMorningRun(_ db: Database) throws -> String? {

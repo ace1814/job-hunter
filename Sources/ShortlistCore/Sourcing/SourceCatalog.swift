@@ -39,8 +39,8 @@ extension Source {
     /// from company boards instead, which you add from your network or by pasting a careers URL.
     public static var recommended: [Source] {
         [
-            Source(kind: .himalayas, name: "Himalayas: product designer", boardID: "product designer"),
-            Source(kind: .himalayas, name: "Himalayas: product manager", boardID: "product manager"),
+            Source(kind: .himalayas, name: "Himalayas: product designer in India", boardID: "product designer|India"),
+            Source(kind: .himalayas, name: "Himalayas: product manager in India", boardID: "product manager|India"),
             Source(kind: .rss, name: "We Work Remotely: Design", url: "https://weworkremotely.com/categories/remote-design-jobs.rss"),
             Source(kind: .rss, name: "We Work Remotely: Product", url: "https://weworkremotely.com/categories/remote-product-jobs.rss"),
             Source(kind: .remoteOK, name: "Remote OK"),

@@ -12,6 +12,7 @@ public enum DailyQueue {
     /// Adds the best waiting jobs until `day` has `size` picks. Returns how many it added.
     @discardableResult
     public static func fill(day: String = Day.today, _ db: Database) throws -> Int {
+        try Eligibility.apply(db)
         let version = try Profile.current(db).version
         try dropOutdatedPicks(day: day, version: version, db)
 

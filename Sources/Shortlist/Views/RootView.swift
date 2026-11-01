@@ -40,8 +40,8 @@ struct RootView: View {
         NavigationSplitView {
             List(selection: $selection) {
                 Section {
-                    row(.today).badge(model.today.filter(\.job.status.isWaiting).count)
-                    row(.freelance).badge(model.freelancePicks.filter(\.job.status.isWaiting).count)
+                    row(.today, badge: model.today.filter(\.job.status.isWaiting).count)
+                    row(.freelance, badge: model.freelancePicks.filter(\.job.status.isWaiting).count)
                     row(.allJobs)
                     row(.progress)
                 }
@@ -63,8 +63,10 @@ struct RootView: View {
         }
     }
 
-    private func row(_ item: SidebarItem) -> some View {
-        Label(item.title, systemImage: item.symbol).tag(item)
+    /// The badge has to go on before the tag. After it, the row loses its tag and selecting it
+    /// gives nil, which shows Today.
+    private func row(_ item: SidebarItem, badge: Int = 0) -> some View {
+        Label(item.title, systemImage: item.symbol).badge(badge).tag(item)
     }
 
     @ViewBuilder

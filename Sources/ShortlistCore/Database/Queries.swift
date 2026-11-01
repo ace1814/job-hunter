@@ -9,6 +9,20 @@ public enum JobOrder: String, CaseIterable, Sendable {
     case today
 }
 
+/// Which kind of work a list shows. Freelance work stays apart from the jobs you count toward your
+/// daily target.
+public enum JobScope: Sendable {
+    case jobs, freelance, everything
+
+    var condition: String {
+        switch self {
+        case .jobs: "job.jobType = 'fullTime'"
+        case .freelance: "job.jobType != 'fullTime'"
+        case .everything: "1"
+        }
+    }
+}
+
 /// A job as the job list shows it: the job, where it came from, how many people you know there,
 /// its score, and your own label.
 public struct JobListItem: Equatable, Sendable, Identifiable, FetchableRecord {
@@ -18,7 +32,7 @@ public struct JobListItem: Equatable, Sendable, Identifiable, FetchableRecord {
     public var referralCount: Int
     public var score: JobScore?
     public var label: JobLabelValue?
-    /// A tailored resume and answers are ready.
+    /// A tailored resume and answers, or a pitch, are ready.
     public var isPrepared: Bool
 
     public var id: Int64 { job.id ?? 0 }
@@ -50,13 +64,13 @@ public struct JobListItem: Equatable, Sendable, Identifiable, FetchableRecord {
     }
 
     /// Open jobs, optionally narrowed by a keyword search over title, company and text.
-    public static func open(matching search: String = "", order: JobOrder = .newest, day: String = Day.today,
+    public static func open(matching search: String = "", order: JobOrder = .newest, scope: JobScope = .jobs, day: String = Day.today,
                             limit: Int = 500, _ db: Database) throws -> [JobListItem] {
         var sql = """
             SELECT job.*, jobScore.*, source.kind AS sourceKind, source.name AS sourceName,
                    jobLabel.label AS labelValue,
                    EXISTS (SELECT 1 FROM application WHERE application.jobId = job.id
-                           AND application.resumePDFPath IS NOT NULL) AS isPrepared,
+                           AND (application.resumePDFPath IS NOT NULL OR application.blurbs != '[]')) AS isPrepared,
                    (SELECT COUNT(*) FROM jobReferral WHERE jobReferral.jobId = job.id) AS referralCount
             FROM job
             LEFT JOIN source ON source.id = job.sourceId
@@ -68,7 +82,7 @@ public struct JobListItem: Equatable, Sendable, Identifiable, FetchableRecord {
             sql += " JOIN dailyQueue ON dailyQueue.jobId = job.id AND dailyQueue.day = ?"
             arguments += [day]
         }
-        sql += " WHERE job.closedAt IS NULL"
+        sql += " WHERE job.closedAt IS NULL AND \(scope.condition)"
         if let pattern = FTS5Pattern(matchingAllPrefixesIn: search) {
             sql += " AND job.id IN (SELECT rowid FROM jobFTS WHERE jobFTS MATCH ?)"
             arguments += [pattern]

@@ -7,6 +7,7 @@ struct ProfileView: View {
     @Environment(AppModel.self) private var model
     @State private var draft = Draft()
     @State private var isPickingResume = false
+    @State private var minimumBudget = Settings.defaultMinimumBudget
 
     /// The form's text, with lists as comma-separated lines.
     private struct Draft: Equatable {
@@ -76,6 +77,7 @@ struct ProfileView: View {
             scoringSection
             resumeSection
             targetSection
+            freelanceSection
             checkSection
         }
         .formStyle(.grouped)
@@ -88,7 +90,11 @@ struct ProfileView: View {
                     .help("Saving changes means waiting jobs get scored again")
             }
         }
-        .onAppear(perform: load)
+        .onAppear {
+            load()
+            minimumBudget = model.minimumBudget
+        }
+        .onChange(of: model.minimumBudget) { _, new in minimumBudget = new }
         .onChange(of: model.profile) { old, new in
             // A resume import changed it underneath the form.
             guard old.masterResume != new.masterResume else { return }
@@ -152,6 +158,21 @@ struct ProfileView: View {
             TextField("Minimum pay", text: $draft.minSalary)
             TextField("Must-haves", text: $draft.mustHaves, prompt: Text("Comma separated"))
             TextField("Dealbreakers", text: $draft.dealbreakers, prompt: Text("Comma separated"))
+        }
+    }
+
+    private var freelanceSection: some View {
+        Section {
+            HStack {
+                TextField("Minimum project budget, in dollars", value: $minimumBudget, format: .number)
+                    .onSubmit { model.setMinimumBudget(minimumBudget) }
+                Button("Save") { model.setMinimumBudget(minimumBudget) }
+                    .disabled(minimumBudget == model.minimumBudget)
+            }
+        } header: {
+            Text("Freelance")
+        } footer: {
+            Text("Reddit posts offering less than this for the whole job are skipped. Hourly and monthly rates are left for scoring to judge.")
         }
     }
 

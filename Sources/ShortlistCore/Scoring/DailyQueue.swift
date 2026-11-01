@@ -6,34 +6,46 @@ import GRDB
 /// exception is a profile edit: picks made for the old profile give way as they're scored again.
 public enum DailyQueue {
     public static let size = 15
+    public static let freelanceSize = 10
     /// Below this a job isn't worth your time, even on a quiet day.
     public static let minimumScore = 50
+    /// Reddit posts stay up after the work is filled, so age is the only sign they've gone stale.
+    /// Job boards take a listing down when it closes.
+    static let redditMaxAge: TimeInterval = 14 * 86_400
 
-    /// Adds the best waiting jobs until `day` has `size` picks. Returns how many it added.
+    /// Adds the best waiting jobs until `day` has `size` picks and `freelanceSize` freelance picks.
+    /// Returns how many it added.
     @discardableResult
     public static func fill(day: String = Day.today, _ db: Database) throws -> Int {
         try Eligibility.apply(db)
         let version = try Profile.current(db).version
         try dropOutdatedPicks(day: day, version: version, db)
+        return try fill(.jobs, size: size, day: day, version: version, db)
+            + fill(.freelance, size: freelanceSize, day: day, version: version, db)
+    }
 
-        let held = try DailyQueueEntry.filter(Column("day") == day).fetchCount(db)
+    private static func fill(_ scope: JobScope, size: Int, day: String, version: Int, _ db: Database) throws -> Int {
+        let inScope = "dailyQueue JOIN job ON job.id = dailyQueue.jobId WHERE dailyQueue.day = ? AND \(scope.condition)"
+        let held = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM \(inScope)", arguments: [day]) ?? 0
         guard held < size else { return 0 }
-        let lastRank = try Int.fetchOne(db, sql: "SELECT MAX(rank) FROM dailyQueue WHERE day = ?", arguments: [day]) ?? 0
+        let lastRank = try Int.fetchOne(db, sql: "SELECT MAX(rank) FROM \(inScope)", arguments: [day]) ?? 0
 
         let ids = try Int64.fetchAll(db, sql: """
             SELECT job.id FROM job
             JOIN jobScore ON jobScore.jobId = job.id
             WHERE job.closedAt IS NULL
+              AND \(scope.condition)
               AND job.status IN ('scored', 'queued')
               AND jobScore.dealbreakerHit = 0
               AND jobScore.score >= ?
               AND jobScore.profileVersion = ?
+              AND (job.url NOT LIKE '%reddit.com/r/%' OR COALESCE(job.postedAt, job.firstSeenAt) >= ?)
               AND job.id NOT IN (SELECT jobId FROM dailyQueue WHERE day = ?)
             ORDER BY jobScore.score DESC,
                      (SELECT COUNT(*) FROM jobReferral WHERE jobReferral.jobId = job.id) DESC,
                      COALESCE(job.postedAt, job.firstSeenAt) DESC
             LIMIT ?
-            """, arguments: [minimumScore, version, day, size - held])
+            """, arguments: [minimumScore, version, Date.now.addingTimeInterval(-redditMaxAge), day, size - held])
 
         for (offset, id) in ids.enumerated() {
             try DailyQueueEntry(day: day, jobId: id, rank: lastRank + offset + 1, profileVersion: version).insert(db)

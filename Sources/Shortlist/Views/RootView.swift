@@ -1,13 +1,14 @@
 import SwiftUI
 
 enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
-    case today, allJobs, progress, network, profile, sources, connect
+    case today, freelance, allJobs, progress, network, profile, sources, connect
 
     var id: Self { self }
 
     var title: String {
         switch self {
         case .today: "Today"
+        case .freelance: "Freelance"
         case .allJobs: "All Jobs"
         case .progress: "Progress"
         case .connect: "Connect"
@@ -20,6 +21,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
     var symbol: String {
         switch self {
         case .today: "sun.max"
+        case .freelance: "briefcase"
         case .allJobs: "tray.full"
         case .progress: "chart.bar"
         case .connect: "puzzlepiece.extension"
@@ -39,6 +41,7 @@ struct RootView: View {
             List(selection: $selection) {
                 Section {
                     row(.today).badge(model.today.filter(\.job.status.isWaiting).count)
+                    row(.freelance).badge(model.freelancePicks.filter(\.job.status.isWaiting).count)
                     row(.allJobs)
                     row(.progress)
                 }
@@ -71,6 +74,8 @@ struct RootView: View {
             NetworkView()
         case .today:
             TodayView { selection = $0 }
+        case .freelance:
+            FreelanceView()
         case .allJobs:
             JobsView()
         case .profile:

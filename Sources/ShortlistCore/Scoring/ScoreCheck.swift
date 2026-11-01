@@ -49,8 +49,7 @@ public struct ScoreCheck: Sendable {
             do {
                 let reply = try await client.completeWithRetries(ScoringPrompt.request(job: job, profile: profile))
                 let assessment = try Assessment.parse(reply.json)
-                let score = Rubric.score(assessment.criteria, dealbreakerHit: assessment.dealbreakerHit,
-                                         countMustHaves: !profile.mustHaves.isEmpty)
+                let score = assessment.score(countMustHaves: !profile.mustHaves.isEmpty)
                 return Swift.Result<(JobLabelValue, Int, TokenUsage), any Error>.success((label, score, reply.usage))
             } catch {
                 return .failure(error)

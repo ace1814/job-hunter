@@ -3,7 +3,8 @@ import GRDB
 
 /// What you do with a job. Applying always happens by you, in your browser: these only record it.
 public enum Pipeline {
-    /// Records that you applied, and counts it toward `day`. Doing it twice counts once.
+    /// Records that you applied, and counts it toward `day`, unless it's a freelance proposal,
+    /// which Progress counts on its own. Doing it twice counts once.
     public static func markApplied(_ jobId: Int64, day: String = Day.today, at date: Date = .now, _ db: Database) throws {
         guard let job = try Job.fetchOne(db, key: jobId), job.status != .applied else { return }
 
@@ -15,6 +16,7 @@ public enum Pipeline {
             try application.insert(db)
         }
         try setStatus(.applied, of: jobId, at: date, db)
+        guard !job.jobType.isFreelanceWork else { return }
         try db.execute(sql: """
             INSERT INTO dailyLog (day, submittedCount) VALUES (?, 1)
             ON CONFLICT(day) DO UPDATE SET submittedCount = submittedCount + 1
@@ -27,8 +29,10 @@ public enum Pipeline {
               let submitted = application.submittedAt else { return }
         application.submittedAt = nil
         try application.update(db)
-        try db.execute(sql: "UPDATE dailyLog SET submittedCount = MAX(submittedCount - 1, 0) WHERE day = ?",
-                       arguments: [Day.key(for: submitted)])
+        if try Job.fetchOne(db, key: jobId)?.jobType.isFreelanceWork != true {
+            try db.execute(sql: "UPDATE dailyLog SET submittedCount = MAX(submittedCount - 1, 0) WHERE day = ?",
+                           arguments: [Day.key(for: submitted)])
+        }
         try restore(jobId, db)
     }
 

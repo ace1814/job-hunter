@@ -42,6 +42,7 @@ public enum FeedError: LocalizedError, Equatable {
     case badStatus(Int)
     case badURL(String)
     case unreadable(String)
+    case rateLimited
 
     public var errorDescription: String? {
         switch self {
@@ -49,6 +50,7 @@ public enum FeedError: LocalizedError, Equatable {
         case .badStatus(let code): "The server answered \(code)."
         case .badURL(let text): "Not a usable URL: \(text)"
         case .unreadable(let detail): "Couldn't read the response: \(detail)"
+        case .rateLimited: "The server asked us to slow down. It'll be tried again on the next refresh."
         }
     }
 }
@@ -69,6 +71,7 @@ extension HTTPClient {
         switch status {
         case 200..<300: return data
         case 404: throw FeedError.notFound
+        case 429: throw FeedError.rateLimited
         default: throw FeedError.badStatus(status)
         }
     }
@@ -88,10 +91,12 @@ public struct FetchedJob: Equatable, Sendable {
     public var descriptionText: String
     public var salaryText: String?
     public var postedAt: Date?
+    public var jobType: JobType
 
+    /// `typeLabel` is the feed's own word for the kind of work, where it has one.
     public init(externalID: String, companyName: String, title: String, location: String = "",
                 remotePolicy: RemotePolicy = .unknown, url: String, applyURL: String? = nil,
-                descriptionText: String = "", salaryText: String? = nil, postedAt: Date? = nil) {
+                descriptionText: String = "", salaryText: String? = nil, postedAt: Date? = nil, typeLabel: String? = nil) {
         self.externalID = externalID
         self.companyName = companyName.trimmingCharacters(in: .whitespacesAndNewlines)
         self.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -102,6 +107,7 @@ public struct FetchedJob: Equatable, Sendable {
         self.descriptionText = descriptionText
         self.salaryText = salaryText.flatMap { $0.isEmpty ? nil : $0 }
         self.postedAt = postedAt
+        self.jobType = JobType(label: typeLabel, title: title)
     }
 }
 

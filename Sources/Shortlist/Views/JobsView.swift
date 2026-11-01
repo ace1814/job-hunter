@@ -29,6 +29,10 @@ struct JobsView: View {
         .searchable(text: $model.jobSearch, prompt: "Search titles, companies, descriptions")
         .toolbar {
             ToolbarItem {
+                Toggle("Freelance", systemImage: "briefcase", isOn: $model.includesFreelance)
+                    .help("Show freelance and contract work here too")
+            }
+            ToolbarItem {
                 Picker("Show", selection: $model.jobOrder) {
                     Text("Best Match").tag(JobOrder.bestMatch)
                     Text("Newest").tag(JobOrder.newest)
@@ -102,6 +106,10 @@ struct JobRow: View {
                 Text(item.job.title).fontWeight(.medium).lineLimit(2)
                 Text(subtitle).font(.callout).foregroundStyle(.secondary).lineLimit(1)
                 HStack(spacing: 6) {
+                    if item.job.jobType.isFreelanceWork {
+                        Tag(text: item.job.jobType.label, tint: .blue)
+                        if let pay = item.job.salaryText { Tag(text: pay) }
+                    }
                     if item.job.remotePolicy != .unknown {
                         Tag(text: item.job.remotePolicy.label)
                     }
@@ -135,6 +143,7 @@ struct JobDetail: View {
                 }
 
                 Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
+                    if job.jobType.isFreelanceWork { fact("Type", job.jobType.label) }
                     if !job.location.isEmpty { fact("Location", job.location) }
                     if job.remotePolicy != .unknown { fact("Work", job.remotePolicy.label) }
                     if let salary = job.salaryText { fact("Pay", salary) }
@@ -147,7 +156,9 @@ struct JobDetail: View {
                     ScoreSummary(score: score)
                 }
 
-                ContactsPanel(contacts: JobContacts(job: job, referrals: referrals))
+                if !job.isDirectPost {
+                    ContactsPanel(contacts: JobContacts(job: job, referrals: referrals))
+                }
 
                 actions(for: item)
                 if job.status.isWaiting || item.isPrepared {
@@ -165,14 +176,19 @@ struct JobDetail: View {
         }
     }
 
-    /// Apply only opens the posting. You send the application yourself, then record it here.
+    /// Apply only opens the posting. You send the application yourself, then record it here. A post
+    /// with no form opens the same way, with your pitch on the clipboard ready to paste.
     private func actions(for item: JobListItem) -> some View {
-        HStack(spacing: 8) {
+        let pitch = item.job.isDirectPost ? model.pitch(for: item) : nil
+        let isProposal = item.job.jobType.isFreelanceWork
+        return HStack(spacing: 8) {
             Button {
+                if let pitch { copy(pitch) }
                 model.noteOpened(item)
                 if let url = URL(string: item.job.applyURL ?? item.job.url) { openURL(url) }
             } label: {
-                Label("Apply", systemImage: "arrow.up.right.square")
+                Label(pitch != nil ? "Copy Pitch & Open Post" : item.job.isDirectPost ? "Open Post" : "Apply",
+                      systemImage: "arrow.up.right.square")
             }
             .buttonStyle(.borderedProminent)
             .help("Opens the posting in your browser")
@@ -182,15 +198,20 @@ struct JobDetail: View {
                 Text("Passed").foregroundStyle(.secondary)
                 Button("Undo") { model.restore(item) }
             case .applied, .interviewing, .rejected, .offer:
-                Label("Applied", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                Label(isProposal ? "Sent" : "Applied", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
                 if item.job.status == .applied {
                     Button("Undo") { model.undoApplied(item) }
                 }
             default:
-                Button("Mark Applied") { model.markApplied(item) }
+                Button(isProposal ? "Mark Sent" : "Mark Applied") { model.markApplied(item) }
                 Button("Not for Me") { model.dismiss(item) }
             }
         }
+    }
+
+    private func copy(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
     }
 
     private func fact(_ label: String, _ value: String) -> some View {
@@ -211,8 +232,10 @@ private struct ApplicationPanel: View {
             if model.preparing.contains(item.id) {
                 HStack(spacing: 8) {
                     ProgressView().controlSize(.small)
-                    Text("Writing your resume and answers…").font(.callout)
+                    Text(item.job.isDirectPost ? "Writing your pitch…" : "Writing your resume and answers…").font(.callout)
                 }
+            } else if item.job.isDirectPost {
+                pitchPanel
             } else if item.isPrepared, let application = model.application(for: item) {
                 HStack {
                     Label("Application ready", systemImage: "doc.text.fill").fontWeight(.medium)
@@ -248,6 +271,27 @@ private struct ApplicationPanel: View {
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 8))
+    }
+
+    /// Posts have no form to fill, so there's one reply to write, and you send it yourself.
+    @ViewBuilder
+    private var pitchPanel: some View {
+        if let pitch = model.pitch(for: item) {
+            HStack {
+                Label("Your pitch", systemImage: "text.bubble.fill").fontWeight(.medium)
+                Spacer()
+                Button("Redo") { Task { await model.prepare(item) } }
+                    .help("Write it again with \(model.tailoringModel)")
+            }
+            Text(pitch).textSelection(.enabled).font(.callout)
+        } else {
+            HStack {
+                Text("This post has no form. You reply to it yourself.").font(.callout).foregroundStyle(.secondary)
+                Spacer()
+                Button("Write Pitch") { Task { await model.prepare(item) } }
+                    .help("Uses \(model.tailoringModel). Read it before you send it.")
+            }
+        }
     }
 }
 
@@ -319,8 +363,9 @@ private struct ScoreSummary: View {
 
     private var footnote: String {
         guard let parts = score.criteria else { return score.model }
-        return "Role \(parts.role)/4 · Experience \(parts.experience)/4 · Level \(parts.seniority)/4 · "
-            + "Location \(parts.location)/4 · Must-haves \(parts.mustHaves)/4 · \(score.model)"
+        let extras = [parts.pay.map { "Pay \($0)/4" }, parts.brief.map { "Brief \($0)/4" }].compactMap { $0 }
+        return (["Role \(parts.role)/4", "Experience \(parts.experience)/4", "Level \(parts.seniority)/4"] + extras
+            + ["Location \(parts.location)/4", "Must-haves \(parts.mustHaves)/4", score.model]).joined(separator: " · ")
     }
 }
 

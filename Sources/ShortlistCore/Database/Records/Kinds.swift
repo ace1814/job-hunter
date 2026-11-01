@@ -25,8 +25,24 @@ public enum RemotePreference: String, Codable, CaseIterable, Sendable, DatabaseV
 /// The kinds of feeds Step 2 will read. Open APIs and RSS only, no scraping.
 public enum SourceKind: String, Codable, CaseIterable, Sendable, DatabaseValueConvertible {
     case greenhouse, lever, ashby, smartRecruiters
-    case remotive, remoteOK, himalayas, hackerNewsHiring
-    case rss
+    case remotive, remoteOK, himalayas, hackerNewsHiring, jobicy
+    case rss, reddit
+}
+
+/// What kind of work a job is. Contract and freelance work live in the Freelance section, apart
+/// from Today, All Jobs and your daily target.
+public enum JobType: String, Codable, CaseIterable, Sendable, DatabaseValueConvertible {
+    case fullTime, contract, freelance
+
+    public var isFreelanceWork: Bool { self != .fullTime }
+
+    public var label: String {
+        switch self {
+        case .fullTime: "Full-time"
+        case .contract: "Contract"
+        case .freelance: "Freelance"
+        }
+    }
 }
 
 /// Would you apply to this job? Your answer, not the model's.

@@ -15,6 +15,8 @@ public struct ProgressStats: Equatable, Sendable {
     public var currentStreak = 0
     public var bestStreak = 0
     public var totalApplied = 0
+    /// Freelance proposals you've sent. These don't count toward `totalApplied` or your target.
+    public var proposals = 0
     public var interviewing = 0
     public var offers = 0
     public var rejected = 0
@@ -62,7 +64,11 @@ public struct ProgressStats: Equatable, Sendable {
         stats.interviewing = counts["interviewing"] ?? 0
         stats.offers = counts["offer"] ?? 0
         stats.rejected = counts["rejected"] ?? 0
-        stats.totalApplied = (counts["applied"] ?? 0) + stats.interviewing + stats.offers + stats.rejected
+        stats.proposals = try Int.fetchOne(db, sql: """
+            SELECT COUNT(*) FROM job
+            WHERE jobType != 'fullTime' AND status IN ('applied', 'interviewing', 'rejected', 'offer')
+            """) ?? 0
+        stats.totalApplied = (counts["applied"] ?? 0) + stats.interviewing + stats.offers + stats.rejected - stats.proposals
         return stats
     }
 

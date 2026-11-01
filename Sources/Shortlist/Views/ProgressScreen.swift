@@ -12,6 +12,7 @@ struct ProgressScreen: View {
                     stat("\(model.stats.currentStreak)", "day streak")
                     stat("\(model.stats.bestStreak)", "best streak")
                     stat("\(model.stats.totalApplied)", "applied")
+                    stat("\(model.stats.proposals)", "proposals")
                     stat("\(model.stats.interviewing)", "interviewing")
                     stat("\(model.stats.offers)", "offers")
                 }
@@ -20,7 +21,7 @@ struct ProgressScreen: View {
             } header: {
                 Text("Last two weeks")
             } footer: {
-                Text("A streak counts the days you reach your target.")
+                Text("A streak counts the days you reach your target. Freelance proposals are counted on their own.")
             }
 
             Section("Applications") {

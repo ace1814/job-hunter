@@ -29,6 +29,17 @@ public enum Settings {
         try setValue(scoring, for: "scoring", db)
     }
 
+    /// Below this, in dollars, a one-off post isn't worth a pitch.
+    public static let defaultMinimumBudget = 200
+
+    public static func minimumBudget(_ db: Database) throws -> Int {
+        try value(for: "minimumBudget", db) ?? defaultMinimumBudget
+    }
+
+    public static func setMinimumBudget(_ dollars: Int, _ db: Database) throws {
+        try setValue(max(dollars, 0), for: "minimumBudget", db)
+    }
+
     public static func scoreChecks(_ db: Database) throws -> [ScoreCheck.Result] {
         try value(for: "scoreChecks", db) ?? []
     }

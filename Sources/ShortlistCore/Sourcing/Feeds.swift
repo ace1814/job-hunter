@@ -14,11 +14,15 @@ public enum Feeds {
         case .ashby: return try await ashby(try requireBoard(), http, filter, fallbackCompany: source.name)
         case .smartRecruiters: return try await smartRecruiters(try requireBoard(), http, filter)
         case .himalayas:
-            let parts = board.split(separator: "|", maxSplits: 1).map(String.init)
-            return try await himalayas(query: parts.first ?? "product designer", country: parts.dropFirst().first, http, filter)
+            // "query|country|employment type", the last two optional.
+            let parts = board.split(separator: "|").map(String.init)
+            return try await himalayas(query: parts.first ?? "product designer", country: parts.dropFirst().first,
+                                       employment: parts.dropFirst(2).first, http, filter)
         case .remotive: return try await remotive(http, filter)
         case .remoteOK: return try await remoteOK(http, filter)
         case .hackerNewsHiring: return try await hackerNews(http, filter)
+        case .jobicy: return try await jobicy(tag: try requireBoard(), http, filter)
+        case .reddit: return try await reddit(try requireBoard(), http, filter)
         case .rss:
             guard let text = source.url, let url = URL(string: text) else { throw FeedError.badURL(source.url ?? "") }
             return try await rss(url, http, filter, fallbackCompany: source.name)
@@ -101,7 +105,8 @@ public enum Feeds {
                 salaryText: posting.salaryRange.flatMap {
                     FeedText.salary(min: $0.min, max: $0.max, currency: $0.currency, period: $0.interval)
                 },
-                postedAt: posting.createdAt.map { Date(timeIntervalSince1970: Double($0) / 1000) })
+                postedAt: posting.createdAt.map { Date(timeIntervalSince1970: Double($0) / 1000) },
+                typeLabel: posting.categories?.commitment)
         }
         return result(jobs, filter, complete: true)
     }
@@ -117,6 +122,7 @@ public enum Feeds {
             var isRemote: Bool?
             var workplaceType: String?
             var publishedAt: String?
+            var employmentType: String?
             var jobUrl: String
             var applyUrl: String?
             var descriptionPlain: String?
@@ -139,7 +145,7 @@ public enum Feeds {
                 location: locations.joined(separator: " • "), remotePolicy: policy, url: job.jobUrl, applyURL: job.applyUrl,
                 descriptionText: job.descriptionPlain?.nilIfEmpty ?? FeedText.plain(fromHTML: job.descriptionHtml ?? ""),
                 salaryText: job.compensation?.compensationTierSummary,
-                postedAt: FeedText.date(iso: job.publishedAt))
+                postedAt: FeedText.date(iso: job.publishedAt), typeLabel: job.employmentType)
         }
         return result(jobs, filter, complete: true)
     }
@@ -148,10 +154,12 @@ public enum Feeds {
         struct Posting: Decodable {
             struct Company: Decodable { var name: String? }
             struct Location: Decodable { var fullLocation: String?; var city: String?; var country: String?; var remote: Bool?; var hybrid: Bool? }
+            struct Employment: Decodable { var label: String? }
             var id: String
             var name: String
             var company: Company?
             var location: Location?
+            var typeOfEmployment: Employment?
             var releasedDate: String?
         }
         var totalFound: Int
@@ -202,7 +210,7 @@ public enum Feeds {
                 remotePolicy: policy,
                 url: detail?.postingUrl ?? "https://jobs.smartrecruiters.com/\(company)/\(posting.id)",
                 applyURL: detail?.applyUrl, descriptionText: text,
-                postedAt: FeedText.date(iso: posting.releasedDate)))
+                postedAt: FeedText.date(iso: posting.releasedDate), typeLabel: posting.typeOfEmployment?.label))
         }
         return FeedResult(jobs: jobs, listedCount: postings.count,
                           allExternalIDs: complete ? Set(postings.map(\.id)) : nil)
@@ -220,6 +228,7 @@ public enum Feeds {
             var maxSalary: Double?
             var currency: String?
             var pubDate: Double?
+            var employmentType: String?
             var applicationLink: String?
             var guid: String
         }
@@ -228,12 +237,14 @@ public enum Feeds {
 
     /// Himalayas search, 20 a page. `query` is what you'd type in its search box. With `country` it
     /// returns jobs open there, worldwide ones included, and that country leads the location so a
-    /// long list doesn't cut it off.
-    static func himalayas(query: String, country: String? = nil, _ http: any HTTPClient, _ filter: TitleFilter, pages: Int = 5) async throws -> FeedResult {
+    /// long list doesn't cut it off. `employment` narrows it to one kind of work, like "Contractor".
+    static func himalayas(query: String, country: String? = nil, employment: String? = nil, _ http: any HTTPClient,
+                          _ filter: TitleFilter, pages: Int = 5) async throws -> FeedResult {
         var all: [FetchedJob] = []
         for page in 1...pages {
             var parameters = ["q": query, "page": String(page)]
             parameters["country"] = country
+            parameters["employment_type"] = employment
             let url = try URL.api("https://himalayas.app/jobs/api/search", query: parameters)
             let response = try await http.json(HimalayasPage.self, from: url)
             all += response.jobs.map { job in
@@ -245,7 +256,7 @@ public enum Feeds {
                     remotePolicy: .remote, url: job.guid, applyURL: job.applicationLink,
                     descriptionText: FeedText.plain(fromHTML: job.description ?? ""),
                     salaryText: FeedText.salary(min: job.minSalary, max: job.maxSalary, currency: job.currency),
-                    postedAt: job.pubDate.map { Date(timeIntervalSince1970: $0) })
+                    postedAt: job.pubDate.map { Date(timeIntervalSince1970: $0) }, typeLabel: job.employmentType)
             }
             if response.jobs.count < 20 { break }
         }
@@ -259,6 +270,7 @@ public enum Feeds {
             var title: String
             var company_name: String
             var publication_date: String?
+            var job_type: String?
             var candidate_required_location: String?
             var salary: String?
             var description: String?
@@ -274,7 +286,7 @@ public enum Feeds {
                 externalID: String(job.id), companyName: job.company_name, title: job.title,
                 location: job.candidate_required_location ?? "Anywhere", remotePolicy: .remote, url: job.url,
                 descriptionText: FeedText.plain(fromHTML: job.description ?? ""), salaryText: job.salary,
-                postedAt: FeedText.date(iso: job.publication_date))
+                postedAt: FeedText.date(iso: job.publication_date), typeLabel: job.job_type)
         }
         return result(jobs, filter, complete: false)
     }
@@ -290,6 +302,7 @@ public enum Feeds {
         var epoch: Double?
         var url: String?
         var apply_url: String?
+        var tags: [String]?
     }
 
     /// RemoteOK's terms ask for a link back to the posting, which the job keeps as its URL.
@@ -303,9 +316,71 @@ public enum Feeds {
                 location: item.location?.nilIfEmpty ?? "Anywhere", remotePolicy: .remote, url: url, applyURL: item.apply_url,
                 descriptionText: FeedText.plain(fromHTML: item.description ?? ""),
                 salaryText: FeedText.salary(min: item.salary_min, max: item.salary_max, currency: "USD"),
-                postedAt: item.epoch.map { Date(timeIntervalSince1970: $0) })
+                postedAt: item.epoch.map { Date(timeIntervalSince1970: $0) },
+                typeLabel: item.tags?.joined(separator: " "))
         }
         return result(jobs, filter, complete: false)
+    }
+
+    private struct JobicyPage: Decodable {
+        struct Job: Decodable {
+            var id: LossyString
+            var url: String
+            var jobTitle: String
+            var companyName: String
+            var jobGeo: String?
+            var jobType: [String]?
+            var jobDescription: String?
+            var pubDate: String?
+            var salaryMin: LossyString?
+            var salaryMax: LossyString?
+            var salaryCurrency: String?
+            var salaryPeriod: String?
+        }
+        var jobs: [Job]?
+    }
+
+    /// Jobicy asks that each job links back to its own page, which the job keeps as its URL. It has
+    /// no India filter, so `Eligibility` sorts out the rest as it does for every feed.
+    static func jobicy(tag: String, _ http: any HTTPClient, _ filter: TitleFilter) async throws -> FeedResult {
+        let url = try URL.api("https://jobicy.com/api/v2/remote-jobs", query: ["count": "50", "tag": tag])
+        let response = try await http.json(JobicyPage.self, from: url)
+        let jobs = (response.jobs ?? []).map { job in
+            FetchedJob(
+                externalID: job.id.value, companyName: job.companyName, title: job.jobTitle,
+                location: job.jobGeo?.replacingOccurrences(of: ",  ", with: ", ") ?? "Anywhere", remotePolicy: .remote, url: job.url,
+                descriptionText: FeedText.plain(fromHTML: job.jobDescription ?? ""),
+                salaryText: FeedText.salary(min: job.salaryMin.flatMap { Double($0.value) }, max: job.salaryMax.flatMap { Double($0.value) },
+                                            currency: job.salaryCurrency, period: job.salaryPeriod),
+                postedAt: FeedText.date(iso: job.pubDate), typeLabel: job.jobType?.joined(separator: " "))
+        }
+        return result(jobs, filter, complete: false)
+    }
+
+    // MARK: - Reddit
+
+    /// A subreddit's newest posts, from its public RSS feed. Reddit allows about one request a
+    /// minute to anyone not signed in, so `JobIngestor` fetches these one at a time.
+    static func reddit(_ subreddit: String, _ http: any HTTPClient, _ filter: TitleFilter) async throws -> FeedResult {
+        let data = try await http.okData(from: try URL.api("https://www.reddit.com/r", [subreddit, "new", ".rss"]))
+        return result(try RSSReader.items(in: data).compactMap(redditJob), filter, complete: false)
+    }
+
+    /// Only posts tagged [Hiring] count: most of these subreddits is people offering their services.
+    /// Their titles are often written "Role | Remote | $30/hr".
+    static func redditJob(_ item: RSSReader.Item) -> FetchedJob? {
+        guard let tag = item.title.firstMatch(of: /^\s*[\[(]\s*(?i:hiring)\s*[\])]\s*[:\-–—]?\s*/) else { return nil }
+        let headline = String(item.title[tag.range.upperBound...])
+        let parts = headline.split(separator: "|").map { $0.trimmingCharacters(in: .whitespaces) }
+        let body = FeedText.plain(fromHTML: item.description.components(separatedBy: "&#32; submitted by").first ?? "")
+        return FetchedJob(
+            externalID: item.guid ?? item.link,
+            companyName: item.author.map { $0.replacingOccurrences(of: "/u/", with: "u/") } ?? "Reddit",
+            title: parts.first ?? headline,
+            location: parts.dropFirst().first { FeedText.remotePolicy(from: $0) != .unknown } ?? "",
+            remotePolicy: FeedText.remotePolicy(from: headline), url: item.link, descriptionText: body,
+            salaryText: Budget.text(in: headline + "\n" + body), postedAt: FeedText.date(iso: item.pubDate),
+            typeLabel: JobType.freelance.rawValue)
     }
 
     // MARK: - Hacker News "Who is hiring?"
@@ -382,7 +457,7 @@ public enum Feeds {
                 externalID: item.guid ?? item.link, companyName: company, title: title, location: location,
                 remotePolicy: FeedText.remotePolicy(from: location).orRemoteIf(url.host()?.contains("weworkremotely") ?? false),
                 url: item.link, descriptionText: FeedText.plain(fromHTML: item.description),
-                postedAt: FeedText.date(rfc822: item.pubDate))
+                postedAt: FeedText.date(rfc822: item.pubDate), typeLabel: item.type)
         }
         return result(jobs, filter, complete: false)
     }
@@ -390,7 +465,7 @@ public enum Feeds {
 
 // MARK: - Small helpers
 
-/// Decodes a JSON string or number as a string: RemoteOK's ids are either.
+/// Decodes a JSON string or number as a string: RemoteOK's ids are either, and Jobicy's pay is too.
 struct LossyString: Decodable {
     var value: String
 
@@ -398,8 +473,10 @@ struct LossyString: Decodable {
         let container = try decoder.singleValueContainer()
         if let string = try? container.decode(String.self) {
             value = string
+        } else if let number = try? container.decode(Int64.self) {
+            value = String(number)
         } else {
-            value = String(try container.decode(Int64.self))
+            value = String(try container.decode(Double.self))
         }
     }
 }

@@ -13,6 +13,7 @@ public enum Eligibility {
 
     /// The `model` on a score written by this check rather than by a model.
     public static let checkName = "location check"
+    public static let budgetCheckName = "budget check"
 
     // MARK: Judging one job
 
@@ -26,10 +27,19 @@ public enum Eligibility {
             if accepted(profile: profile, home: home).contains(where: { contains($0, in: job.location) }) { return .open }
             return .closed(reason: "Not open to people in \(home). It's limited to \(job.location).")
         }
-        if let place = limitedPlace(in: job.descriptionText) {
+        if let place = limitedPlace(in: job.descriptionText) ?? limitedPlace(inTitle: job.title) {
             return .closed(reason: "Not open to people in \(home). The posting limits it to \(place).")
         }
         return .open
+    }
+
+    /// Why a post you'd answer yourself pays too little to bother with, if it does. Only for those
+    /// posts: a company's contract job can mention small sums that aren't the pay.
+    public static func budgetLimit(for job: Job, minimum: Int) -> String? {
+        guard job.isDirectPost, job.jobType.isFreelanceWork,
+              let offered = Budget.flatDollars(in: [job.title, job.salaryText ?? "", job.descriptionText].joined(separator: "\n")),
+              offered < Double(minimum) else { return nil }
+        return "It pays about $\(Int(offered)), under your $\(minimum) minimum."
     }
 
     /// Words that say a job can be done remotely without saying where.
@@ -93,6 +103,15 @@ public enum Eligibility {
         #"\b((?:PST|PDT|EST|EDT|CST|CDT|US|U\.S\.) (?i:time ?zones?|hours|business hours|working hours))\b"#,
     ].compactMap { try? NSRegularExpression(pattern: $0) }
 
+    private static let titleLimit = try? NSRegularExpression(pattern: #"\b(\#(place))[ -](?i:based|only|residents?|citizens?)\b"#)
+
+    /// Unlike a company's description, a title's "US-based" is about who they want.
+    static func limitedPlace(inTitle title: String) -> String? {
+        titleLimit?.firstMatch(in: title, range: NSRange(title.startIndex..., in: title))
+            .flatMap { Range($0.range(at: 1), in: title) }
+            .map { String(title[$0]) }
+    }
+
     /// The place a posting's text restricts it to, if it does.
     static func limitedPlace(in description: String) -> String? {
         let range = NSRange(description.startIndex..., in: description)
@@ -107,30 +126,39 @@ public enum Eligibility {
 
     // MARK: Applying it
 
-    /// Scores every job you can't apply to as 0, which keeps it off Today and saves paying a model
-    /// to read it, and takes it off today's list if it was there. Your other picks stay put. A job
-    /// that has since become open, because a feed or your profile changed, goes back to be scored.
+    /// Scores every job you can't apply to or that pays too little as 0, which keeps it off your
+    /// lists and saves paying a model to read it, and takes it off today's list if it was there.
+    /// Your other picks stay put. A job that has since become open, because a feed, your profile or
+    /// your minimum changed, goes back to be scored.
     @discardableResult
     public static func apply(now: Date = .now, _ db: Database) throws -> Int {
         let profile = try Profile.current(db)
+        let minimum = try Settings.minimumBudget(db)
         let jobs = try Job
             .filter(Column("closedAt") == nil)
             .filter([JobStatus.new, .scored, .queued].map(\.rawValue).contains(Column("status")))
             .fetchAll(db)
         let checked = Dictionary(
-            try JobScore.filter(Column("model") == checkName).fetchAll(db).map { ($0.jobId, $0) },
+            try JobScore.filter([checkName, budgetCheckName].contains(Column("model"))).fetchAll(db).map { ($0.jobId, $0) },
             uniquingKeysWith: { first, _ in first })
 
         var closed = 0
         for job in jobs {
             guard let id = job.id else { continue }
-            guard case .closed(let reason) = verdict(for: job, profile: profile) else {
+            var check = checkName
+            var reason: String?
+            if case .closed(let why) = verdict(for: job, profile: profile) {
+                reason = why
+            } else if let why = budgetLimit(for: job, minimum: minimum) {
+                (check, reason) = (budgetCheckName, why)
+            }
+            guard let reason else {
                 if checked[id] != nil { try JobScore.deleteOne(db, key: id) }
                 continue
             }
             closed += 1
             if let saved = checked[id], saved.rationale == reason, saved.profileVersion == profile.version { continue }
-            try JobScore(jobId: id, score: 0, rationale: reason, model: checkName, profileVersion: profile.version,
+            try JobScore(jobId: id, score: 0, rationale: reason, model: check, profileVersion: profile.version,
                          scoredAt: now).save(db)
             try db.execute(sql: "DELETE FROM dailyQueue WHERE day = ? AND jobId = ?", arguments: [Day.today, id])
             try db.execute(sql: "UPDATE job SET status = 'scored' WHERE id = ?", arguments: [id])

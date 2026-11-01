@@ -34,6 +34,8 @@ Needs macOS 26 and Xcode 26. The database lives at
 6. Progress screen, streaks, morning refresh ✅
 7. Web access: a small web server in the app serves the dashboard to your own devices over
    Tailscale. The Mac stays the engine, and nothing is hosted in the cloud ✅
+8. Freelance: a section of its own, contract searches, Jobicy and Reddit, pitches for posts with no
+   form, and proposals counted apart from your daily target ✅
 
 ## Applying
 
@@ -71,6 +73,32 @@ most people. It only connects a board it can confirm is that company's: the boar
 match, or for boards with no name, its postings must talk about the company as themselves.
 Stopping keeps what it found, and connecting again carries on. Each company is rechecked after 30
 days. Companies with their own careers sites, like Google or Microsoft, have no such board.
+
+## Freelance
+
+Every job is full-time, contract or freelance, from the feed's own label or, failing that, its title.
+Contract and freelance work appears under Freelance, with its own top 10 a day, and stays out of
+Today and your target. All Jobs hides it unless you turn on its Freelance toggle, and Progress counts
+proposals on their own.
+
+Reddit is read from each subreddit's public RSS feed, without an account. Only posts tagged `[Hiring]`
+are kept, and they still have to pass your title keywords and `Eligibility`. Reddit allows about one
+request a minute, so subreddits are fetched one at a time, last, and at most every 3 hours. Posts
+older than 14 days aren't picked, because a filled post stays up. Add a subreddit from Sources by
+pasting `r/name`.
+
+A Reddit post that offers less than your minimum budget for the whole job, $200 unless you change
+it in Profile, is skipped before any model reads it. Rates by the hour, month or piece are left for
+scoring to judge.
+
+Freelance scoring swaps in two more questions, pay and how clear the brief is, and poor pay caps a
+job at 40. The model also lists scam signs, such as moving the talk to Telegram or asking for unpaid
+test work. Any sign caps the job at 20 and shows up on it.
+
+Reddit posts have no form for the extension to fill. Write Pitch drafts a short reply with
+`gpt-6.1-sol`. It uses your resume and nothing else, and the app adds your work link afterwards, so
+your links never reach the model. Copy Pitch & Open Post puts it on your clipboard and opens the
+post. You send it yourself.
 
 ## Scoring
 

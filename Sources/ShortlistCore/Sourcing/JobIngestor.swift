@@ -14,6 +14,7 @@ public struct JobIngestor: Sendable {
         /// Already in from another feed.
         public var duplicates = 0
         public var skippedAsRecent = false
+        public var wasRateLimited = false
         public var error: String?
     }
 
@@ -32,19 +33,26 @@ public struct JobIngestor: Sendable {
     private let database: AppDatabase
     private let http: any HTTPClient
     private let now: @Sendable () -> Date
+    private let pause: (@Sendable (Int) async -> Void)?
 
-    public init(database: AppDatabase, http: any HTTPClient = URLSessionHTTPClient(), now: @escaping @Sendable () -> Date = { .now }) {
+    /// Reddit allows about one request a minute to anyone not signed in. In seconds.
+    static let redditGap = 65
+
+    public init(database: AppDatabase, http: any HTTPClient = URLSessionHTTPClient(), now: @escaping @Sendable () -> Date = { .now },
+                pause: (@Sendable (Int) async -> Void)? = nil) {
         self.database = database
         self.http = http
         self.now = now
+        self.pause = pause
     }
 
     /// Fetches every enabled source, a few at a time. Unless `force`, sources fetched more
-    /// recently than their kind allows are skipped.
+    /// recently than their kind allows are skipped. Reddit goes last, one subreddit at a time.
     public func refreshAll(force: Bool = false) async throws -> Report {
-        let sources = try await database.reader.read { db in
+        let enabled = try await database.reader.read { db in
             try Source.filter(Column("isEnabled") == true).order(Column("id")).fetchAll(db)
         }
+        let sources = enabled.filter { $0.kind != .reddit }
         let reports = await withTaskGroup(of: (Int, SourceReport).self) { group in
             var results: [(Int, SourceReport)] = []
             var next = 0
@@ -61,13 +69,50 @@ public struct JobIngestor: Sendable {
             }
             return results.sorted { $0.0 < $1.0 }.map(\.1)
         }
+        let redditReports = await refreshSlowly(enabled.filter { $0.kind == .reddit }, force: force)
         try await database.writer.write { try Eligibility.apply($0) }
-        return Report(sources: reports)
+        return Report(sources: reports + redditReports)
+    }
+
+    /// Waits between fetches, and tries once more if Reddit still says to slow down.
+    private func refreshSlowly(_ sources: [Source], force: Bool) async -> [SourceReport] {
+        var reports: [SourceReport] = []
+        var hasFetched = false
+        for source in sources {
+            guard force || !isRecent(source) else {
+                reports.append(SourceReport(sourceName: source.name, skippedAsRecent: true))
+                continue
+            }
+            if hasFetched { await wait() }
+            hasFetched = true
+            var report = await refresh(source)
+            if report.wasRateLimited {
+                await wait()
+                report = await refresh(source)
+            }
+            reports.append(report)
+        }
+        return reports
+    }
+
+    /// `pause` stands in for this in tests. Don't give it a real default value: an async closure as
+    /// a default argument crashes the Swift 6.3 runtime here ("freed pointer was not the last
+    /// allocation").
+    private func wait() async {
+        if let pause {
+            await pause(Self.redditGap)
+        } else {
+            try? await Task.sleep(for: .seconds(Self.redditGap))
+        }
+    }
+
+    private func isRecent(_ source: Source) -> Bool {
+        source.lastFetchedAt.map { now().timeIntervalSince($0) < source.kind.minimumInterval } ?? false
     }
 
     public func refresh(_ source: Source, force: Bool = true) async -> SourceReport {
         var report = SourceReport(sourceName: source.name)
-        if !force, let last = source.lastFetchedAt, now().timeIntervalSince(last) < source.kind.minimumInterval {
+        if !force, isRecent(source) {
             report.skippedAsRecent = true
             return report
         }
@@ -81,6 +126,7 @@ public struct JobIngestor: Sendable {
             }
         } catch {
             report.error = error.localizedDescription
+            report.wasRateLimited = error as? FeedError == .rateLimited
             let message = report.error
             try? await database.writer.write { db in
                 guard var saved = try Source.fetchOne(db, key: source.id) else { return }
@@ -106,7 +152,7 @@ public struct JobIngestor: Sendable {
                 sourceId: sourceId, externalID: fetched.externalID, companyName: fetched.companyName, title: fetched.title,
                 location: fetched.location, remotePolicy: fetched.remotePolicy, url: fetched.url, applyURL: fetched.applyURL,
                 descriptionText: fetched.descriptionText, salaryText: fetched.salaryText, postedAt: fetched.postedAt,
-                firstSeenAt: time)
+                firstSeenAt: time, jobType: fetched.jobType)
 
             let existing = try Job
                 .filter(Column("sourceId") == sourceId && Column("externalID") == fetched.externalID)
@@ -126,7 +172,15 @@ public struct JobIngestor: Sendable {
                 try job.updateChanges(db) { $0.lastSeenAt = time }
                 continue
             }
+            if fetched.jobType != job.jobType, [.scored, .queued].contains(job.status) {
+                // Freelance work is scored on different questions, and it has its own list.
+                try JobScore.deleteOne(db, key: job.id)
+                try db.execute(sql: "DELETE FROM dailyQueue WHERE day = ? AND jobId = ?", arguments: [Day.key(for: time), job.id])
+                job.status = .new
+                try job.update(db, columns: ["status"])
+            }
             let changed = try job.updateChanges(db) {
+                $0.jobType = fetched.jobType
                 $0.url = fetched.url
                 if !fetched.location.isEmpty { $0.location = fetched.location }
                 $0.applyURL = fetched.applyURL

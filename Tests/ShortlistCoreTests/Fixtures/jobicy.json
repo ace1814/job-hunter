@@ -1,0 +1,52 @@
+{
+ "apiVersion": "2.2.19",
+ "jobCount": 2,
+ "jobs": [
+  {
+   "id": 158195,
+   "url": "https://jobicy.com/jobs/158195-staff-industrial-designer",
+   "jobSlug": "158195-staff-industrial-designer",
+   "jobTitle": "Staff Industrial Designer",
+   "companyName": "hims &#038; hers",
+   "companyLogo": "https://jobicy.com/data/server-nyc0409/galaxy/mercury/2023/11/e7b9b920-221.jpeg",
+   "jobIndustry": [
+    "Creative & Design"
+   ],
+   "jobType": [
+    "Contract"
+   ],
+   "jobGeo": "USA",
+   "jobLevel": "Senior",
+   "jobExcerpt": "Hims &amp; Hers is the leading health and wellness platform, on a mission to help the world feel gre",
+   "jobDescription": "<p><a href=\"https://jobicy.com/company/hims-hers\" target=\"_blank\" rel=\"noopener\">Hims &amp; Hers</a> is the leading health and wellness platform, on a mission to help the world feel great through the power of better health. We are redefining healthcare by putting the customer first and delivering ac",
+   "pubDate": "2026-10-31T10:10:27+00:00",
+   "salaryMin": 180000,
+   "salaryMax": 220000,
+   "salaryCurrency": "USD",
+   "salaryPeriod": "yearly"
+  },
+  {
+   "id": 158288,
+   "url": "https://jobicy.com/jobs/158288-associate-creative-director-digital-design",
+   "jobSlug": "158288-associate-creative-director-digital-design",
+   "jobTitle": "Associate Creative Director, Digital Design",
+   "companyName": "Samsara",
+   "companyLogo": "https://jobicy.com/data/server-nyc0409/galaxy/mercury/2025/06/dd26f5ca-221.jpg",
+   "jobIndustry": [
+    "Web, UI & UX Design"
+   ],
+   "jobType": [
+    "Full-Time"
+   ],
+   "jobGeo": "USA",
+   "jobLevel": "Director",
+   "jobExcerpt": "Who we are Samsara (NYSE: IOT) is the pioneer of the Connected Operations\u2122 Cloud, which is a platfor",
+   "jobDescription": "<p><strong>Who we are</strong></p>\n<p><a href=\"https://jobicy.com/company/samsara\" target=\"_blank\" rel=\"noopener\">Samsara</a> (NYSE: IOT) is the pioneer of the Connected Operations\u2122 Cloud, which is a platform that enables organizations that depend on physical operations to harness Internet of Things",
+   "pubDate": "2026-11-01T04:32:15+00:00",
+   "salaryMin": 114800,
+   "salaryMax": 205000,
+   "salaryCurrency": "USD",
+   "salaryPeriod": "yearly"
+  }
+ ]
+}

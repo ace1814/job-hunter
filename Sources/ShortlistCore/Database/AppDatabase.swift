@@ -253,6 +253,39 @@ extension AppDatabase {
             try db.execute(sql: "DELETE FROM setting WHERE key = 'lastMorningRun'")
         }
 
+        migrator.registerMigration("v7") { db in
+            try db.alter(table: "job") { t in
+                t.add(column: "jobType", .text).notNull().indexed().defaults(to: JobType.fullTime.rawValue)
+            }
+            // Titles can be tagged now. Feeds label the rest the next time they're fetched.
+            for row in try Row.fetchAll(db, sql: "SELECT id, title FROM job") {
+                let type = JobType(label: nil, title: row["title"])
+                guard type != .fullTime else { continue }
+                try db.execute(sql: "UPDATE job SET jobType = ? WHERE id = ?", arguments: [type, row["id"] as Int64])
+            }
+            // Freelance work is scored on different questions, so those jobs start again.
+            let tagged = "SELECT id FROM job WHERE jobType != 'fullTime' AND status IN ('new', 'scored', 'queued')"
+            try db.execute(sql: "DELETE FROM jobScore WHERE jobId IN (\(tagged))")
+            try db.execute(sql: "DELETE FROM dailyQueue WHERE jobId IN (\(tagged))")
+            try db.execute(sql: "UPDATE job SET status = 'new' WHERE id IN (\(tagged))")
+
+            // The new feeds join an existing setup. A new one gets them from Add Recommended Feeds.
+            let feeds = [
+                ("himalayas", "Himalayas: contract product designer in India", "product designer|India|Contractor"),
+                ("himalayas", "Himalayas: contract product manager in India", "product manager|India|Contractor"),
+                ("jobicy", "Jobicy: design", "design"),
+                ("reddit", "Reddit: r/forhire", "forhire"),
+                ("reddit", "Reddit: r/DesignJobs", "DesignJobs"),
+            ]
+            for (kind, name, board) in feeds {
+                try db.execute(sql: """
+                    INSERT INTO source (kind, name, boardID) SELECT ?, ?, ? WHERE EXISTS (SELECT 1 FROM source)
+                    """, arguments: [kind, name, board])
+            }
+            try db.execute(sql: "UPDATE source SET lastFetchedAt = NULL")
+            try db.execute(sql: "DELETE FROM setting WHERE key = 'lastMorningRun'")
+        }
+
         return migrator
     }
 }

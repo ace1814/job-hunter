@@ -10,6 +10,10 @@ enum RSSReader {
         var description = ""
         /// We Work Remotely's own tag for where you can work from.
         var region: String?
+        /// We Work Remotely's own tag for the kind of work.
+        var type: String?
+        /// Atom's author name.
+        var author: String?
     }
 
     static func items(in data: Data) throws -> [Item] {
@@ -63,6 +67,8 @@ enum RSSReader {
             case "pubDate", "published", "updated": if current?.pubDate == nil { current?.pubDate = value }
             case "description", "summary", "content": if current?.description.isEmpty ?? true { current?.description = value }
             case "region": current?.region = value
+            case "type": current?.type = value
+            case "name": current?.author = value
             default: break
             }
         }

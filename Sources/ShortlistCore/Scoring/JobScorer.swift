@@ -111,11 +111,10 @@ extension JobScore {
     init(_ assessment: Assessment, jobId: Int64, profile: Profile, model: String, scoredAt: Date) {
         self.init(
             jobId: jobId,
-            score: Rubric.score(assessment.criteria, dealbreakerHit: assessment.dealbreakerHit,
-                                countMustHaves: !profile.mustHaves.isEmpty),
+            score: assessment.score(countMustHaves: !profile.mustHaves.isEmpty),
             rationale: assessment.rationale,
             strengths: Array(assessment.strengths.prefix(3)),
-            gaps: Array(assessment.gaps.prefix(3)),
+            gaps: Array(((assessment.scamSigns ?? []).map { "Possible scam: \($0)" } + assessment.gaps).prefix(3)),
             dealbreakerHit: assessment.dealbreakerHit,
             model: model, profileVersion: profile.version, scoredAt: scoredAt,
             criteria: assessment.criteria)

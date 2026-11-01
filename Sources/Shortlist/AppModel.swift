@@ -47,6 +47,15 @@ final class AppModel {
     var jobOrder = JobOrder.bestMatch {
         didSet { if jobOrder != oldValue { observeJobs() } }
     }
+    /// Shows freelance work in All Jobs too.
+    var includesFreelance = false {
+        didSet { if includesFreelance != oldValue { observeJobs() } }
+    }
+
+    // Freelance
+    private(set) var freelancePicks: [JobListItem] = []
+    private(set) var freelanceJobs: [JobListItem] = []
+    private(set) var minimumBudget = Settings.defaultMinimumBudget
 
     // Profile and scoring
     private(set) var profile = Profile()
@@ -146,6 +155,12 @@ final class AppModel {
             (model.today, model.todayLog) = value
         })
         observations.append(watch(reader, { db in
+            (try JobListItem.open(order: .today, scope: .freelance, db),
+             try JobListItem.open(order: .bestMatch, scope: .freelance, db), try Settings.minimumBudget(db))
+        }) { model, value in
+            (model.freelancePicks, model.freelanceJobs, model.minimumBudget) = value
+        })
+        observations.append(watch(reader, { db in
             (try ProgressStats.fetch(db), try JobListItem.applied(db))
         }) { model, value in
             (model.stats, model.appliedJobs) = value
@@ -168,8 +183,8 @@ final class AppModel {
     private func observeJobs() {
         guard let reader = database?.reader else { return }
         jobsObservation?.cancel()
-        let (search, order) = (jobSearch, jobOrder)
-        jobsObservation = watch(reader, { try JobListItem.open(matching: search, order: order, $0) }) { $0.jobs = $1 }
+        let (search, order, scope) = (jobSearch, jobOrder, includesFreelance ? JobScope.everything : .jobs)
+        jobsObservation = watch(reader, { try JobListItem.open(matching: search, order: order, scope: scope, $0) }) { $0.jobs = $1 }
     }
 
     private func watch<Value: Sendable>(
@@ -397,7 +412,13 @@ final class AppModel {
         try? database?.reader.read { try JobApplication.filter(Column("jobId") == item.id).fetchOne($0) }
     }
 
-    /// Writes the tailored resume and answers for one job, with the better, costlier model.
+    /// The reply written for a post with no application form.
+    func pitch(for item: JobListItem) -> String? {
+        application(for: item)?.blurbs.first { $0.question == Tailor.pitch }?.answer
+    }
+
+    /// Writes the tailored resume and answers for one job, or a pitch for a post, with the better,
+    /// costlier model.
     func prepare(_ item: JobListItem) async {
         guard let database, !preparing.contains(item.id) else { return }
         preparing.insert(item.id)
@@ -408,7 +429,8 @@ final class AppModel {
             if key == nil && OpenAIKey.exists { throw ModelError.lockedKey }
             guard let key else { throw ModelError.missingKey }
             let client = OpenAIClient(model: tailoringModel, apiKey: key, http: http)
-            let output = try await Tailor(database: database, client: client).run(jobId: item.id)
+            let tailor = try Tailor(database: database, client: client)
+            let output = try await item.job.isDirectPost ? tailor.writePitch(jobId: item.id) : tailor.run(jobId: item.id)
             if let dollars = Pricing.dollars(model: client.name, usage: output.usage) {
                 prepareMessage = String(format: "Ready · about $%.2f", dollars)
             } else {
@@ -421,6 +443,13 @@ final class AppModel {
 
     func setTailoringModel(_ name: String) {
         try? database?.writer.write { try Settings.setTailoringModel(name, $0) }
+    }
+
+    func setMinimumBudget(_ dollars: Int) {
+        try? database?.writer.write { db in
+            try Settings.setMinimumBudget(dollars, db)
+            try Eligibility.apply(db)
+        }
     }
 
     func setStage(_ status: JobStatus, for item: JobListItem) {
@@ -615,7 +644,7 @@ final class AppModel {
 
     private static func describe(_ report: JobScorer.Report, model: String, addedToToday: Int) -> String {
         var parts = ["\(report.scored) scored"]
-        if addedToToday > 0 { parts.append("\(addedToToday) added to today") }
+        if addedToToday > 0 { parts.append("\(addedToToday) added to your picks") }
         if let dollars = Pricing.dollars(model: model, usage: report.usage), report.usage.input > 0 {
             parts.append(String(format: "about $%.3f", dollars))
         }

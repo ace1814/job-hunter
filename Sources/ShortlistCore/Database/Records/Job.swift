@@ -53,12 +53,13 @@ public struct Job: Codable, Identifiable, Equatable, Sendable, FetchableRecord, 
     public var statusChangedAt: Date
     public var lastSeenAt: Date?
     public var closedAt: Date?
+    public var jobType: JobType
 
     public init(
         id: Int64? = nil, sourceId: Int64? = nil, externalID: String? = nil, companyId: Int64? = nil,
         companyName: String, title: String, location: String = "", remotePolicy: RemotePolicy = .unknown,
         url: String, applyURL: String? = nil, descriptionText: String = "", salaryText: String? = nil,
-        postedAt: Date? = nil, firstSeenAt: Date = .now, status: JobStatus = .new
+        postedAt: Date? = nil, firstSeenAt: Date = .now, status: JobStatus = .new, jobType: JobType = .fullTime
     ) {
         self.id = id
         self.sourceId = sourceId
@@ -78,6 +79,7 @@ public struct Job: Codable, Identifiable, Equatable, Sendable, FetchableRecord, 
         self.status = status
         self.statusChangedAt = firstSeenAt
         self.lastSeenAt = firstSeenAt
+        self.jobType = jobType
     }
 
     public mutating func didInsert(_ inserted: InsertionSuccess) {
@@ -85,6 +87,9 @@ public struct Job: Codable, Identifiable, Equatable, Sendable, FetchableRecord, 
     }
 
     public var isOpen: Bool { closedAt == nil }
+
+    /// A post you answer yourself, with no application form behind it.
+    public var isDirectPost: Bool { url.contains("reddit.com/r/") }
 
     /// The same role at the same company and place is one job, whichever feed it came from.
     public static func dedupeKey(company: String, title: String, location: String) -> String {

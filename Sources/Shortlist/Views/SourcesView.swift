@@ -214,7 +214,7 @@ private struct AddSourceSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Add a source").font(.title2.weight(.semibold))
-            Text("Paste a company's careers page on Greenhouse, Lever, Ashby or SmartRecruiters, or the address of an RSS feed.")
+            Text("Paste a company's careers page on Greenhouse, Lever, Ashby or SmartRecruiters, a subreddit like r/forhire, or the address of an RSS feed.")
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             TextField("https://jobs.lever.co/company", text: $text)
@@ -237,7 +237,7 @@ private struct AddSourceSheet: View {
                     Task { await model.addRecommended() }
                     dismiss()
                 }
-                .help("Himalayas, We Work Remotely, Remote OK, Remotive and HN Who is hiring")
+                .help("Himalayas, We Work Remotely, Remote OK, Remotive, HN Who is hiring, Jobicy and Reddit")
                 Spacer()
                 Button("Cancel", role: .cancel) { dismiss() }
                     .keyboardShortcut(.cancelAction)

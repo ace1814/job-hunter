@@ -11,7 +11,9 @@ extension SourceKind {
         case .remoteOK: "Remote OK"
         case .himalayas: "Himalayas"
         case .hackerNewsHiring: "HN Who is hiring"
+        case .jobicy: "Jobicy"
         case .rss: "RSS"
+        case .reddit: "Reddit"
         }
     }
 
@@ -23,11 +25,12 @@ extension SourceKind {
         }
     }
 
-    /// The least time between two fetches. Remotive asks for no more than a few calls a day, and
-    /// the HN thread changes slowly.
+    /// The least time between two fetches. Remotive asks for no more than a few calls a day, the
+    /// HN thread changes slowly, and Reddit is strict with anyone not signed in.
     public var minimumInterval: TimeInterval {
         switch self {
-        case .remotive, .hackerNewsHiring: 6 * 3600
+        case .remotive, .hackerNewsHiring, .jobicy: 6 * 3600
+        case .reddit: 3 * 3600
         case .remoteOK, .himalayas, .rss: 3600
         default: 0
         }
@@ -46,6 +49,11 @@ extension Source {
             Source(kind: .remoteOK, name: "Remote OK"),
             Source(kind: .remotive, name: "Remotive"),
             Source(kind: .hackerNewsHiring, name: "HN Who is hiring"),
+            Source(kind: .himalayas, name: "Himalayas: contract product designer in India", boardID: "product designer|India|Contractor"),
+            Source(kind: .himalayas, name: "Himalayas: contract product manager in India", boardID: "product manager|India|Contractor"),
+            Source(kind: .jobicy, name: "Jobicy: design", boardID: "design"),
+            Source(kind: .reddit, name: "Reddit: r/forhire", boardID: "forhire"),
+            Source(kind: .reddit, name: "Reddit: r/DesignJobs", boardID: "DesignJobs"),
         ]
     }
 
@@ -61,6 +69,7 @@ extension Source {
 public enum SourceLocator {
     public static func source(from text: String) -> Source? {
         var trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.hasPrefix("r/") { return subreddit(String(trimmed.dropFirst(2))) }
         if !trimmed.contains("://") { trimmed = "https://" + trimmed }
         guard let components = URLComponents(string: trimmed), let host = components.host?.lowercased(),
               host.contains(".") else { return nil }
@@ -88,10 +97,18 @@ public enum SourceLocator {
             return board(.ashby, first)
         case "jobs.smartrecruiters.com", "careers.smartrecruiters.com":
             return board(.smartRecruiters, first)
+        case "reddit.com", "www.reddit.com", "old.reddit.com":
+            return first == "r" && path.count >= 2 ? subreddit(path[1]) : nil
         default:
             guard components.scheme == "https" || components.scheme == "http" else { return nil }
             return Source(kind: .rss, name: host.replacingOccurrences(of: "www.", with: ""), url: trimmed)
         }
+    }
+
+    private static func subreddit(_ name: String) -> Source? {
+        let name = name.trimmingCharacters(in: CharacterSet(charactersIn: "/ "))
+        guard !name.isEmpty else { return nil }
+        return Source(kind: .reddit, name: "Reddit: r/\(name)", boardID: name)
     }
 
     /// "razorpay" → "Razorpay", "acme-labs" → "Acme Labs".

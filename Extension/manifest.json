@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Shortlist Assist",
-  "version": "0.2.0",
-  "description": "Fills job application forms from your Shortlist app. You review them and press Submit yourself.",
+  "version": "0.3.0",
+  "description": "Fills job application forms from your Shortlist app and saves jobs to its Tracker. You review forms and press Submit yourself.",
   "permissions": ["storage", "activeTab", "scripting"],
   "host_permissions": ["http://127.0.0.1:8787/*"],
   "background": { "service_worker": "background.js" },

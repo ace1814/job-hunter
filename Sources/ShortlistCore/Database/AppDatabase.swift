@@ -286,6 +286,37 @@ extension AppDatabase {
             try db.execute(sql: "DELETE FROM setting WHERE key = 'lastMorningRun'")
         }
 
+        migrator.registerMigration("v8") { db in
+            try db.alter(table: "job") { t in
+                t.add(column: "savedAt", .datetime)
+            }
+            try db.create(table: "jobNote") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.belongsTo("job", onDelete: .cascade).notNull()
+                t.column("text", .text).notNull()
+                t.column("createdAt", .datetime).notNull()
+            }
+            // People you typed in yourself. A model never adds to this table.
+            try db.create(table: "jobContact") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.belongsTo("job", onDelete: .cascade).notNull()
+                t.column("name", .text).notNull()
+                t.column("email", .text).notNull().defaults(to: "")
+                t.column("createdAt", .datetime).notNull()
+            }
+            try db.create(table: "reminder") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.belongsTo("job", onDelete: .cascade).notNull()
+                t.column("kind", .text).notNull()
+                t.column("dueAt", .datetime).notNull().indexed()
+                t.column("note", .text).notNull().defaults(to: "")
+                t.column("draftSubject", .text).notNull().defaults(to: "")
+                t.column("draftBody", .text).notNull().defaults(to: "")
+                t.column("doneAt", .datetime)
+                t.column("createdAt", .datetime).notNull()
+            }
+        }
+
         return migrator
     }
 }

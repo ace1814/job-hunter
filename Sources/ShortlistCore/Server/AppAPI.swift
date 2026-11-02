@@ -42,6 +42,10 @@ public struct AppAPI: Sendable {
             return try Self.json(try await database.reader.read { try TodayPayload.fetch($0) })
         case ("GET", ["api", "packet"]):
             return try await packet(for: request.query["url"] ?? "")
+        case ("POST", ["api", "page"]):
+            return try await readPage(request)
+        case ("POST", ["api", "tracker"]):
+            return try await track(request)
         case ("POST", let path) where path.count == 4 && path[0] == "api" && path[1] == "jobs":
             guard let id = Int64(path[2]) else { return Self.error(400, "That isn't a job.") }
             return try await act(path[3], on: id)
@@ -67,6 +71,23 @@ public struct AppAPI: Sendable {
             return true
         }
         return known ? try Self.json(["ok": true]) : Self.error(404, "Nothing here.")
+    }
+
+    /// What the extension read from the page you have open. Nothing here goes out to the site.
+    private func readPage(_ request: HTTPRequest) async throws -> HTTPResponse {
+        guard let sent = try? JSONDecoder().decode(PageReading.self, from: request.body),
+              let url = JobPageReader.cleanURL(sent.url) else { return Self.error(400, "That page has no usable address.") }
+        var page = JobPageParser.parse(html: sent.head, url: url.absoluteString, text: sent.text)
+        page.problem = nil
+        let known = try await database.reader.read { try PostingMatcher.job(for: url.absoluteString, $0) }
+        return try Self.json(PageAnswer(page: page, isTracked: known?.status.isTracked ?? false))
+    }
+
+    private func track(_ request: HTTPRequest) async throws -> HTTPResponse {
+        guard let new = try? JSONDecoder().decode(Tracker.NewJob.self, from: request.body), new.isComplete else {
+            return Self.error(400, "A job needs a title and a company.")
+        }
+        return try Self.json(try await database.writer.write { try Tracker.add(new, $0) })
     }
 
     private func packet(for url: String) async throws -> HTTPResponse {
@@ -103,6 +124,18 @@ public struct AppAPI: Sendable {
         _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
         return bytes.map { String(format: "%02x", $0) }.joined()
     }
+}
+
+/// The parts of a page the extension sends: its head, and the text of its main content.
+struct PageReading: Decodable {
+    var url: String
+    var head: String
+    var text: String
+}
+
+struct PageAnswer: Encodable {
+    var page: JobPage
+    var isTracked: Bool
 }
 
 struct LastOpenedJob: Codable {

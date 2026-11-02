@@ -13,6 +13,7 @@ struct ConnectView: View {
             extensionSection
             webSection
             morningSection
+            followUpSection
             Section("Tailoring") {
                 TextField("Model", text: $tailoringModel)
                     .onSubmit { model.setTailoringModel(tailoringModel) }
@@ -45,7 +46,7 @@ struct ConnectView: View {
         } header: {
             Text("Browser extension")
         } footer: {
-            Text("It fills in application forms from your prepared materials. You check them and press Submit yourself.")
+            Text("It fills in application forms from your prepared materials, and Save to Tracker adds the job on any page. You check forms and press Submit yourself.")
         }
     }
 
@@ -105,6 +106,23 @@ struct ConnectView: View {
             Text("Morning refresh")
         } footer: {
             Text("Fetches new jobs, scores up to \(JobScorer.defaultLimit) of them and fills today's list, once a day. It runs when Shortlist is open, so opening it at login makes it reliable.")
+        }
+    }
+
+    private var followUpSection: some View {
+        Section {
+            Picker("Remind me to follow up", selection: Binding {
+                model.followUpDays
+            } set: {
+                model.setFollowUpDays($0)
+            }) {
+                Text("Never").tag(0)
+                ForEach([5, 7, 10, 14], id: \.self) { Text("After \($0) days").tag($0) }
+            }
+        } header: {
+            Text("Follow-ups")
+        } footer: {
+            Text("Set when you mark a job applied. Reminders arrive as one notification at \(Reminders.notificationHour):00 AM on days something is due, even with Shortlist closed, as long as this Mac is on.")
         }
     }
 

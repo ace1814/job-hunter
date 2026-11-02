@@ -80,6 +80,27 @@ final class AppModel {
     private(set) var prepareMessage: String?
     private(set) var tailoringModel = ""
 
+    // Tracker
+    private(set) var tracked: [JobListItem] = []
+    private(set) var tracking = TrackingSnapshot()
+    private(set) var followUpDays = Settings.defaultFollowUpDays
+    private(set) var drafting: Set<Int64> = []
+    private(set) var draftMessage: String?
+    var trackerSelection: JobListItem.ID?
+    /// `dueJobs` reads this, so what's due updates when the date changes with the app left open.
+    private var currentDay = Day.today
+    @ObservationIgnored private var announced: [Reminders.Announcement]?
+    @ObservationIgnored private let banners = NotificationBanners()
+
+    /// Jobs with a reminder due, oldest first.
+    var dueJobs: [JobListItem] {
+        _ = currentDay
+        return tracked
+            .compactMap { item in tracking.reminders[item.id]?.first.flatMap { $0.isDue() ? (item, $0.dueAt) : nil } }
+            .sorted { $0.1 < $1.1 }
+            .map(\.0)
+    }
+
     // Progress
     private(set) var stats = ProgressStats()
     private(set) var appliedJobs: [JobListItem] = []
@@ -103,6 +124,7 @@ final class AppModel {
             database = nil
             databaseError = error.localizedDescription
         }
+        if ReminderNotifications.isAvailable { UNUserNotificationCenter.current().delegate = banners }
         observe()
         observeJobs()
         Task {
@@ -122,6 +144,7 @@ final class AppModel {
         observations.append(Task { [weak self] in
             for await _ in NotificationCenter.default.notifications(named: .NSCalendarDayChanged) {
                 await self?.fillToday()
+                self?.currentDay = Day.today
             }
         })
     }
@@ -164,6 +187,12 @@ final class AppModel {
             (try ProgressStats.fetch(db), try JobListItem.applied(db))
         }) { model, value in
             (model.stats, model.appliedJobs) = value
+        })
+        observations.append(watch(reader, { db in
+            (try JobListItem.tracked(db), try TrackingSnapshot.fetch(db), try Settings.followUpDays(db))
+        }) { model, value in
+            (model.tracked, model.tracking, model.followUpDays) = value
+            model.announceReminders()
         })
         observations.append(watch(reader, { db in
             (try Settings.tailoringModel(db), try Settings.webAccess(db), try Settings.morningHour(db))
@@ -454,6 +483,93 @@ final class AppModel {
 
     func setStage(_ status: JobStatus, for item: JobListItem) {
         try? database?.writer.write { try Pipeline.setStage(status, of: item.id, $0) }
+    }
+
+    // MARK: Tracker
+
+    func readJobLink(_ text: String) async -> JobPage {
+        if let page = try? await database?.reader.read({ try JobPageReader.known(text, $0) }) { return page }
+        return await JobPageReader(http: http).read(text)
+    }
+
+    /// Adds a job, or finds the one it matches, and shows it.
+    func addJob(_ new: Tracker.NewJob) {
+        trackerSelection = (try? database?.writer.write { try Tracker.add(new, $0) })?.jobId
+    }
+
+    func saveToTracker(_ item: JobListItem) {
+        try? database?.writer.write { try Pipeline.save(item.id, $0) }
+    }
+
+    func interviewDone(_ item: JobListItem) {
+        try? database?.writer.write { try Pipeline.interviewDone(item.id, $0) }
+    }
+
+    func addNote(_ text: String, for item: JobListItem) {
+        try? database?.writer.write { try Tracker.addNote(text, to: item.id, $0) }
+    }
+
+    func remove(_ note: JobNote) {
+        _ = try? database?.writer.write { try note.delete($0) }
+    }
+
+    func addContact(name: String, email: String, for item: JobListItem) {
+        try? database?.writer.write { try Tracker.addContact(name: name, email: email, to: item.id, $0) }
+    }
+
+    func remove(_ contact: JobContact) {
+        _ = try? database?.writer.write { try contact.delete($0) }
+    }
+
+    func addReminder(on day: Date, note: String, for item: JobListItem) {
+        let start = Calendar.current.startOfDay(for: day)
+        try? database?.writer.write { try Reminders.add(item.id, dueAt: start, note: note, $0) }
+    }
+
+    func finish(_ reminder: Reminder) {
+        guard let id = reminder.id else { return }
+        try? database?.writer.write { try Reminders.finish(id, $0) }
+    }
+
+    func snooze(_ reminder: Reminder) {
+        guard let id = reminder.id else { return }
+        try? database?.writer.write { try Reminders.snooze(id, $0) }
+    }
+
+    func saveDraft(of reminder: Reminder, subject: String, body: String) {
+        guard let id = reminder.id else { return }
+        try? database?.writer.write { try Reminders.saveDraft(id, subject: subject, body: body, $0) }
+    }
+
+    /// Drafts the message for a reminder with the scoring model. It's a few lines, so the cheaper
+    /// model does it well enough.
+    func writeMessage(for reminder: Reminder) async {
+        guard let database, let id = reminder.id, !drafting.contains(id) else { return }
+        drafting.insert(id)
+        draftMessage = nil
+        defer { drafting.remove(id) }
+        do {
+            let client = try makeClient()
+            let output = try await FollowUpWriter(database: database, client: client).write(reminderId: id)
+            if let dollars = Pricing.dollars(model: client.name, usage: output.usage) {
+                draftMessage = String(format: "Written · about $%.4f", dollars)
+            }
+        } catch {
+            draftMessage = error.localizedDescription
+        }
+    }
+
+    func setFollowUpDays(_ days: Int) {
+        try? database?.writer.write { try Settings.setFollowUpDays(days, $0) }
+    }
+
+    /// Hands the system the days to announce, when they've changed.
+    private func announceReminders() {
+        let companies = Dictionary(tracked.map { ($0.id, $0.job.companyName) }) { first, _ in first }
+        let next = Reminders.announcements(tracking.openReminders, companies: companies)
+        guard next != announced else { return }
+        announced = next
+        Task { await ReminderNotifications.update(next) }
     }
 
     // MARK: Connect

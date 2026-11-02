@@ -9,6 +9,8 @@ struct TodayView: View {
 
     private var toDo: [JobListItem] { model.today.filter(\.job.status.isWaiting) }
     private var done: [JobListItem] { model.today.filter { !$0.job.status.isWaiting } }
+    /// A pick can be due too, and a list can only show a job once.
+    private var followUps: [JobListItem] { model.dueJobs.filter { due in !model.today.contains { $0.id == due.id } } }
 
     var body: some View {
         Group {
@@ -39,7 +41,7 @@ struct TodayView: View {
 
     /// The checklist stays until there's something to work through.
     private var isSetUp: Bool {
-        model.isReadyToScore || !model.today.isEmpty
+        model.isReadyToScore || !model.today.isEmpty || !model.dueJobs.isEmpty
     }
 
     private var dashboard: some View {
@@ -53,7 +55,7 @@ struct TodayView: View {
             .frame(minWidth: 320, idealWidth: 400)
 
             Group {
-                if let item = model.today.first(where: { $0.id == selection }) {
+                if let item = (model.today + followUps).first(where: { $0.id == selection }) {
                     JobDetail(item: item)
                 } else {
                     ContentUnavailableView("Pick a job", systemImage: "doc.text")
@@ -74,7 +76,7 @@ struct TodayView: View {
 
     @ViewBuilder
     private var list: some View {
-        if model.today.isEmpty {
+        if model.today.isEmpty && followUps.isEmpty {
             ContentUnavailableView {
                 Label("No picks yet", systemImage: "sun.max")
             } description: {
@@ -84,6 +86,11 @@ struct TodayView: View {
             }
         } else {
             List(selection: $selection) {
+                if !followUps.isEmpty {
+                    Section("Follow up") {
+                        ForEach(followUps) { JobRow(item: $0) }
+                    }
+                }
                 if !toDo.isEmpty {
                     Section("To do") {
                         ForEach(toDo) { JobRow(item: $0) }

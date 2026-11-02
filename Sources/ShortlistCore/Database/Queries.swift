@@ -63,6 +63,24 @@ public struct JobListItem: Equatable, Sendable, Identifiable, FetchableRecord {
             """)
     }
 
+    /// Everything in the Tracker, most recently moved first, even if a board has since closed it.
+    public static func tracked(_ db: Database) throws -> [JobListItem] {
+        let stages = JobStatus.tracked.map { "'\($0.rawValue)'" }.joined(separator: ", ")
+        return try JobListItem.fetchAll(db, sql: """
+            SELECT job.*, jobScore.*, source.kind AS sourceKind, source.name AS sourceName,
+                   jobLabel.label AS labelValue,
+                   EXISTS (SELECT 1 FROM application WHERE application.jobId = job.id
+                           AND (application.resumePDFPath IS NOT NULL OR application.blurbs != '[]')) AS isPrepared,
+                   (SELECT COUNT(*) FROM jobReferral WHERE jobReferral.jobId = job.id) AS referralCount
+            FROM job
+            LEFT JOIN source ON source.id = job.sourceId
+            LEFT JOIN jobScore ON jobScore.jobId = job.id
+            LEFT JOIN jobLabel ON jobLabel.jobId = job.id
+            WHERE job.status IN (\(stages))
+            ORDER BY job.statusChangedAt DESC
+            """)
+    }
+
     /// Open jobs, optionally narrowed by a keyword search over title, company and text.
     public static func open(matching search: String = "", order: JobOrder = .newest, scope: JobScope = .jobs, day: String = Day.today,
                             limit: Int = 500, _ db: Database) throws -> [JobListItem] {

@@ -54,6 +54,8 @@ public struct Job: Codable, Identifiable, Equatable, Sendable, FetchableRecord, 
     public var lastSeenAt: Date?
     public var closedAt: Date?
     public var jobType: JobType
+    /// When you put it in the Tracker. Taking back an action on it returns it there.
+    public var savedAt: Date?
 
     public init(
         id: Int64? = nil, sourceId: Int64? = nil, externalID: String? = nil, companyId: Int64? = nil,
@@ -90,6 +92,10 @@ public struct Job: Codable, Identifiable, Equatable, Sendable, FetchableRecord, 
 
     /// A post you answer yourself, with no application form behind it.
     public var isDirectPost: Bool { url.contains("reddit.com/r/") }
+
+    /// You added it yourself, so no feed looks after it. A job whose source was removed keeps its
+    /// feed's ID.
+    public var isAddedByYou: Bool { sourceId == nil && externalID == nil }
 
     /// The same role at the same company and place is one job, whichever feed it came from.
     public static func dedupeKey(company: String, title: String, location: String) -> String {

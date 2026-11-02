@@ -40,6 +40,17 @@ public enum Settings {
         try setValue(max(dollars, 0), for: "minimumBudget", db)
     }
 
+    /// How long after applying a follow-up comes due. Zero means no automatic reminders.
+    public static let defaultFollowUpDays = 7
+
+    public static func followUpDays(_ db: Database) throws -> Int {
+        try value(for: "followUpDays", db) ?? defaultFollowUpDays
+    }
+
+    public static func setFollowUpDays(_ days: Int, _ db: Database) throws {
+        try setValue(max(days, 0), for: "followUpDays", db)
+    }
+
     public static func scoreChecks(_ db: Database) throws -> [ScoreCheck.Result] {
         try value(for: "scoreChecks", db) ?? []
     }

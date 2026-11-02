@@ -95,6 +95,7 @@ private struct ScoreBadge: View {
 }
 
 struct JobRow: View {
+    @Environment(AppModel.self) private var model
     let item: JobListItem
 
     var body: some View {
@@ -106,6 +107,12 @@ struct JobRow: View {
                 Text(item.job.title).fontWeight(.medium).lineLimit(2)
                 Text(subtitle).font(.callout).foregroundStyle(.secondary).lineLimit(1)
                 HStack(spacing: 6) {
+                    if let reminder = model.tracking.reminders[item.id]?.first {
+                        Tag(text: reminder.shortDueText, symbol: "bell.fill", tint: reminder.isDue() ? .orange : .secondary)
+                    }
+                    if !item.job.isOpen {
+                        Tag(text: "Closed")
+                    }
                     if item.job.jobType.isFreelanceWork {
                         Tag(text: item.job.jobType.label, tint: .blue)
                         if let pay = item.job.salaryText { Tag(text: pay) }
@@ -148,9 +155,15 @@ struct JobDetail: View {
                     if job.remotePolicy != .unknown { fact("Work", job.remotePolicy.label) }
                     if let salary = job.salaryText { fact("Pay", salary) }
                     if let posted = job.postedAt { fact("Posted", posted.formatted(date: .abbreviated, time: .omitted)) }
-                    fact("Source", item.sourceName ?? item.sourceKind?.displayName ?? "—")
+                    fact("Source", item.sourceName ?? item.sourceKind?.displayName ?? (job.isAddedByYou ? "Added by you" : "—"))
                 }
                 .font(.callout)
+
+                // On a job you're following, what's next for it comes before the background.
+                if job.status.isTracked {
+                    actions(for: item)
+                    TrackingPanel(item: item)
+                }
 
                 if let score = item.score {
                     ScoreSummary(score: score)
@@ -160,7 +173,9 @@ struct JobDetail: View {
                     ContactsPanel(contacts: JobContacts(job: job, referrals: referrals))
                 }
 
-                actions(for: item)
+                if !job.status.isTracked {
+                    actions(for: item)
+                }
                 if job.status.isWaiting || item.isPrepared {
                     ApplicationPanel(item: item)
                 }
@@ -204,6 +219,9 @@ struct JobDetail: View {
                 }
             default:
                 Button(isProposal ? "Mark Sent" : "Mark Applied") { model.markApplied(item) }
+                if item.job.status != .saved {
+                    Button("Save to Tracker") { model.saveToTracker(item) }
+                }
                 Button("Not for Me") { model.dismiss(item) }
             }
         }

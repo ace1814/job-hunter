@@ -6,7 +6,10 @@
   p { margin: 0 0 10px; color: #555; }
   input { width: 100%; box-sizing: border-box; padding: 7px; margin-bottom: 8px; border: 1px solid #bbb; border-radius: 6px; }
   button { width: 100%; padding: 8px; border: 0; border-radius: 8px; font-weight: 600; background: #0a66ff; color: #fff; cursor: pointer; }
-  #fill { margin-top: 8px; background: #eee; color: #1a1a1a; }
+  textarea { width: 100%; box-sizing: border-box; padding: 7px; margin-bottom: 8px; border: 1px solid #bbb; border-radius: 6px; font: inherit; resize: vertical; }
+  label { display: block; margin-bottom: 2px; color: #555; }
+  #fill, #track { margin-top: 8px; background: #eee; color: #1a1a1a; }
+  #tracker { display: none; }
   #status { margin-top: 8px; color: #555; min-height: 18px; }
 </style>
 <h1>Shortlist Assist</h1>
@@ -14,5 +17,17 @@
 <input id="token" type="password" placeholder="Paste your token" autocomplete="off">
 <button id="save">Save and Check</button>
 <button id="fill">Fill This Page</button>
+<button id="track">Save to Tracker</button>
 <div id="status"></div>
+<form id="tracker">
+  <label for="job-title">Title</label>
+  <input id="job-title" autocomplete="off">
+  <label for="job-company">Company</label>
+  <input id="job-company" autocomplete="off">
+  <label for="job-location">Location</label>
+  <input id="job-location" autocomplete="off">
+  <label for="job-note">Note</label>
+  <textarea id="job-note" rows="2"></textarea>
+  <button type="submit">Save</button>
+</form>
 <script src="popup.js"></script>

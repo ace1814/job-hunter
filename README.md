@@ -36,6 +36,7 @@ Needs macOS 26 and Xcode 26. The database lives at
    Tailscale. The Mac stays the engine, and nothing is hosted in the cloud ✅
 8. Freelance: a section of its own, contract searches, Jobicy and Reddit, pitches for posts with no
    form, and proposals counted apart from your daily target ✅
+9. Tracker: add any job from a link, notes, contacts, follow-up reminders and drafted messages ✅
 
 ## Applying
 
@@ -99,6 +100,33 @@ Reddit posts have no form for the extension to fill. Write Pitch drafts a short 
 `gpt-6.1-sol`. It uses your resume and nothing else, and the app adds your work link afterwards, so
 your links never reach the model. Copy Pitch & Open Post puts it on your clipboard and opens the
 post. You send it yourself.
+
+## Tracker
+
+The Tracker follows the jobs you care about, wherever they came from. Paste a link into Add Job, or
+press Save to Tracker on any job in the app or on any page in the browser extension.
+
+A link fills in the rest as far as it can. A job your feeds already found is reused. Greenhouse,
+Lever and Ashby links use their open APIs. Other sites get one plain page request, and most career
+sites publish the job's details in the page. LinkedIn, Naukri, Indeed, Glassdoor and Wellfound are
+never fetched: the extension reads those from the page you already have open.
+
+A job you add is an ordinary job, so tailoring, form filling and contacts all work on it. It stays
+out of scoring and the location rules, because you chose it. Marking it applied counts toward your
+daily target like any other application, on the day you say you applied.
+
+Each job keeps dated notes, the people you're talking to, and its reminders. Marking a job applied
+sets a follow-up 7 days later (change it in Connect). Interview Done sets a thank-you for the next
+day. Moving to Interviewing ends the waiting follow-up, and a rejection, an offer or passing on the
+job ends every reminder.
+
+What's due shows at the top of Today and the Tracker. macOS announces it once at 10:00 AM on days
+something falls due, naming the companies, so a busy day is one notification. These arrive with
+Shortlist closed, as long as the Mac is on.
+
+Write Message drafts a short email with your scoring model, from the job and your notes. The
+greeting and sign-off come from the app, so a model never names a person. You read it, change it,
+then Copy it or open it in Gmail. Shortlist never sends anything.
 
 ## Scoring
 

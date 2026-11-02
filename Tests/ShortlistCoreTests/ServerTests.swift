@@ -24,9 +24,9 @@ final class ServerTests: XCTestCase {
         }
     }
 
-    private func call(_ path: String, method: String = "GET", query: [String: String] = [:], token: String? = nil) async -> HTTPResponse {
+    private func call(_ path: String, method: String = "GET", query: [String: String] = [:], token: String? = nil, body: Data = Data()) async -> HTTPResponse {
         await api.handle(HTTPRequest(method: method, path: path, query: query,
-                                     headers: ["authorization": "Bearer \(token ?? self.token)"]))
+                                     headers: ["authorization": "Bearer \(token ?? self.token)"], body: body))
     }
 
     private func prepare() async throws {
@@ -42,10 +42,50 @@ final class ServerTests: XCTestCase {
         }
     }
 
+    // MARK: Saving from the browser
+
+    func test_theExtensionReadsAPageThenSavesWhatYouConfirmed() async throws {
+        let reading = try JSONSerialization.data(withJSONObject: [
+            "url": "https://www.linkedin.com/jobs/search/?currentJobId=77",
+            "head": "<title>Lead Designer | Razorpay | LinkedIn</title>",
+            "text": "About the job",
+        ])
+        let answer = await call("/api/page", method: "POST", body: reading)
+        XCTAssertEqual(answer.status, 200)
+        let read = try XCTUnwrap(JSONSerialization.jsonObject(with: answer.body) as? [String: Any])
+        var page = try XCTUnwrap(read["page"] as? [String: Any])
+        XCTAssertEqual(page["url"] as? String, "https://www.linkedin.com/jobs/view/77/")
+        XCTAssertEqual(page["company"] as? String, "Razorpay")
+        XCTAssertEqual(read["isTracked"] as? Bool, false)
+
+        // The popup sends the page back, with the fields you edited and your note.
+        page["title"] = "Lead Product Designer"
+        page["note"] = "From Priya"
+        let saved = await call("/api/tracker", method: "POST", body: try JSONSerialization.data(withJSONObject: page))
+        XCTAssertEqual(saved.status, 200)
+        let added = try JSONDecoder().decode(Tracker.Added.self, from: saved.body)
+        let (job, snapshot) = try await database.reader.read { (try Job.fetchOne($0, key: added.jobId), try TrackingSnapshot.fetch($0)) }
+        XCTAssertEqual(job?.title, "Lead Product Designer")
+        XCTAssertEqual(job?.status, .saved)
+        XCTAssertEqual(job?.descriptionText, "About the job")
+        XCTAssertEqual(snapshot.notes[added.jobId]?.map(\.text), ["From Priya"])
+
+        let again = await call("/api/page", method: "POST", body: reading)
+        let second = try XCTUnwrap(JSONSerialization.jsonObject(with: again.body) as? [String: Any])
+        XCTAssertEqual(second["isTracked"] as? Bool, true)
+    }
+
+    func test_aJobNeedsATitleAndACompany() async throws {
+        let body = try JSONEncoder().encode(Tracker.NewJob(url: "https://acme.com/1", title: " ", company: "Acme"))
+        let answer = await call("/api/tracker", method: "POST", body: body)
+        XCTAssertEqual(answer.status, 400)
+    }
+
     // MARK: Security
 
     func test_everyDataRouteNeedsTheToken() async {
-        for (method, path) in [("GET", "/api/today"), ("GET", "/api/packet"), ("POST", "/api/jobs/1/applied")] {
+        for (method, path) in [("GET", "/api/today"), ("GET", "/api/packet"), ("POST", "/api/jobs/1/applied"),
+                               ("POST", "/api/page"), ("POST", "/api/tracker")] {
             let wrong = await call(path, method: method, token: "wrong-token")
             XCTAssertEqual(wrong.status, 401, path)
             let none = await api.handle(HTTPRequest(method: method, path: path))

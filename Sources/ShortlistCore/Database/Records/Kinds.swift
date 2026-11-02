@@ -7,6 +7,7 @@ public enum JobStatus: String, Codable, CaseIterable, Sendable, DatabaseValueCon
     case scored         // has a match score
     case queued         // in a day's top picks
     case applying       // tailored materials being made or reviewed
+    case saved          // you're tracking it and haven't applied yet
     case applied
     case interviewing
     case rejected

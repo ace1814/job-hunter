@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
-    case today, freelance, allJobs, progress, network, profile, sources, connect
+    case today, freelance, tracker, allJobs, progress, network, profile, sources, connect
 
     var id: Self { self }
 
@@ -9,6 +9,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .today: "Today"
         case .freelance: "Freelance"
+        case .tracker: "Tracker"
         case .allJobs: "All Jobs"
         case .progress: "Progress"
         case .connect: "Connect"
@@ -22,6 +23,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .today: "sun.max"
         case .freelance: "briefcase"
+        case .tracker: "checklist"
         case .allJobs: "tray.full"
         case .progress: "chart.bar"
         case .connect: "puzzlepiece.extension"
@@ -42,6 +44,7 @@ struct RootView: View {
                 Section {
                     row(.today, badge: model.today.filter(\.job.status.isWaiting).count)
                     row(.freelance, badge: model.freelancePicks.filter(\.job.status.isWaiting).count)
+                    row(.tracker, badge: model.dueJobs.count)
                     row(.allJobs)
                     row(.progress)
                 }
@@ -78,6 +81,8 @@ struct RootView: View {
             TodayView { selection = $0 }
         case .freelance:
             FreelanceView()
+        case .tracker:
+            TrackerView()
         case .allJobs:
             JobsView()
         case .profile:
